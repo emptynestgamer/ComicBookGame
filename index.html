@@ -1,0 +1,2313 @@
+<!DOCTYPE html>
+
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comic Collector • Collection Simulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+    html, body {
+        width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    
+    body { font-family: system-ui, -apple-system, sans-serif; }
+
+    /* Comic typography utilities */
+    .font-bangers { font-family: 'Bangers', Impact, 'Arial Narrow', cursive; letter-spacing: 0.05em; }
+    .font-oswald  { font-family: 'Oswald', sans-serif; }
+
+    /* Stat label caps — Wizard-style price guide labels */
+    .stat-label {
+        font-family: 'Oswald', sans-serif;
+        font-size: 0.65rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #a1a1aa; /* zinc-400 */
+    }
+
+    /* Card accent border — warm ink feel */
+    .card-comic {
+        border-color: #3f3f46; /* zinc-700 */
+        background-color: #18181b; /* zinc-900 */
+    }
+    .card-comic:hover {
+        border-color: #ca8a04; /* yellow-600 — collector's gold */
+    }
+    
+    .card-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    .card-hover:hover { transform: translateY(-4px); }
+    .tab-content { word-break: break-word; }
+    .safe-grid { width: 100%; overflow-x: hidden; }
+    
+    .comic-cover {
+        width: 100%;
+        height: auto;
+        object-fit: cover;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+    }
+
+    .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 16px;
+    }
+    
+    @media (min-width: 640px) {
+        .gallery-grid {
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        }
+    }
+
+    /* Fix for portfolio header */
+    .portfolio-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .portfolio-controls {
+        display: flex;
+        gap: 0.75rem;
+        width: 100%;
+        min-width: 0;
+    }
+
+    @media (min-width: 640px) {
+        .portfolio-header {
+            flex-wrap: nowrap;
+        }
+        .portfolio-controls {
+            width: auto;
+            flex: 1;
+            max-width: 520px;
+        }
+    }
+
+    /* PRICE TICKER — remove this block to disable */
+    .ticker-wrap {
+        overflow: hidden;
+        white-space: nowrap;
+        border-top: 1px solid #3f3f46;
+        border-bottom: 1px solid #3f3f46;
+        background-color: #18181b;
+        padding: 0.45rem 0;
+        margin: 0 -1rem; /* bleed to edges on mobile */
+    }
+    .ticker-track {
+        display: inline-flex;
+        gap: 2.5rem;
+        animation: tickerScroll 75s linear infinite;
+    }
+    .ticker-item {
+        font-family: 'Oswald', sans-serif;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #a1a1aa;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        white-space: nowrap;
+    }
+    .ticker-item.live { color: #34d399; } /* emerald for live data */
+    .ticker-item::before {
+        content: '◆';
+        font-size: 0.45rem;
+        color: #ca8a04;
+        opacity: 0.8;
+    }
+    @keyframes tickerScroll {
+        from { transform: translateX(0); }
+        to   { transform: translateX(-50%); }
+    }
+    /* END PRICE TICKER */
+</style>
+
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col opacity-0 transition-opacity duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-1 w-full overflow-x-hidden pb-8">
+
+<!-- Header -->
+
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-6 border-b border-zinc-800">
+    <div class="flex items-center gap-3 flex-shrink-0">
+        <i class="fa-solid fa-layer-group text-3xl text-emerald-500"></i>
+        <div>
+            <h1 class="font-bangers text-4xl tracking-wide bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent py-1 px-0.5 -my-1">comicbookgame!</h1>
+            <p class="font-oswald text-yellow-500 text-xs tracking-widest uppercase mt-0.5">Buy • Hold • Die?</p>
+        </div>
+    </div>
+
+<div class="grid grid-cols-3 gap-2 sm:gap-8 w-full sm:w-auto text-center sm:text-right">
+    <div class="min-w-0">
+        <div class="stat-label">CASH</div>
+        <div id="cash" class="text-sm font-mono font-bold text-emerald-400 truncate">$1,000.00</div>
+    </div>
+    <div class="min-w-0">
+        <div class="stat-label">PORTFOLIO</div>
+        <div id="portfolio-value" class="text-sm font-mono font-bold truncate">$0.00</div>
+    </div>
+    <div class="min-w-0">
+        <div class="stat-label">TOTAL P&L</div>
+        <div id="total-pl" class="text-sm font-mono font-bold text-emerald-400 truncate">+$0.00</div>
+    </div>
+</div>
+
+</div>
+
+<!-- PRICE TICKER — remove this block and the ticker CSS/JS sections to disable -->
+
+<div id="ticker-wrap" class="ticker-wrap mt-4 -mx-4 sm:-mx-6 lg:-mx-8">
+    <div class="ticker-track" id="ticker-track">
+        <!-- Items injected by buildTicker() — duplicated for seamless loop -->
+    </div>
+</div>
+<!-- END PRICE TICKER -->
+
+<!-- Navigation Tabs -->
+
+<div class="flex border-b border-zinc-800 mt-6 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
+    <button onclick="switchTab(0)" id="tab-0" class="tab-button font-oswald flex-1 sm:flex-none px-4 py-3 font-medium border-b-2 border-yellow-400 text-yellow-400 text-sm sm:text-base whitespace-nowrap">Portfolio</button>
+    <button onclick="switchTab(1)" id="tab-1" class="tab-button font-oswald flex-1 sm:flex-none px-4 py-3 font-medium text-zinc-400 text-sm sm:text-base whitespace-nowrap">Dashboard</button>
+    <button onclick="switchTab(2)" id="tab-2" class="tab-button font-oswald flex-1 sm:flex-none px-4 py-3 font-medium text-zinc-400 text-sm sm:text-base whitespace-nowrap">Watchlist</button>
+    <button onclick="switchTab(3)" id="tab-3" class="tab-button font-oswald flex-1 sm:flex-none px-4 py-3 font-medium text-zinc-400 text-sm sm:text-base whitespace-nowrap">History</button>
+    <button onclick="switchTab(4)" id="tab-4" class="tab-button font-oswald flex-1 sm:flex-none px-4 py-3 font-medium text-zinc-400 text-sm sm:text-base whitespace-nowrap">Log</button>
+</div>
+
+<!-- PORTFOLIO TAB -->
+
+<div id="tab-content-0" class="tab-content">
+    <!-- Updated Portfolio Header -->
+    <div class="portfolio-header mb-6">
+        <div class="flex items-center gap-4 flex-shrink-0">
+            <h2 class="font-oswald text-xl font-semibold whitespace-nowrap text-yellow-400">Your Portfolio (<span id="portfolio-count">0</span>)</h2>
+
+<div class="flex border border-zinc-700 rounded-2xl p-1 bg-zinc-900">
+    <button onclick="setViewMode('list')" id="view-list" 
+            class="px-4 py-1.5 text-sm font-medium rounded-xl transition-colors flex items-center gap-1">
+        <i class="fa-solid fa-list"></i>
+    </button>
+    <button onclick="setViewMode('gallery')" id="view-gallery" 
+            class="px-4 py-1.5 text-sm font-medium rounded-xl transition-colors flex items-center gap-1">
+        <i class="fa-solid fa-grip"></i>
+    </button>
+</div>
+
+</div>
+
+<div class="portfolio-controls">
+    <input id="portfolio-search" type="text" placeholder="Search eBay — e.g. Amazing Spider-Man 129"
+           class="flex-1 min-w-0 bg-zinc-950 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500"
+           onkeydown="if(event.key==='Enter') searchEbay()">
+    <button onclick="searchEbay()"
+            class="bg-yellow-500 hover:bg-yellow-400 text-zinc-950 px-6 py-3 rounded-2xl font-oswald font-semibold whitespace-nowrap flex-shrink-0 tracking-wide">
+        SEARCH
+    </button>
+    <button onclick="showManualEntryModal()"
+            class="bg-zinc-700 hover:bg-zinc-600 px-6 py-3 rounded-2xl font-oswald font-semibold whitespace-nowrap flex-shrink-0 tracking-wide">
+        MANUAL
+    </button>
+</div>
+
+<!-- EBAY SEARCH RESULTS -->
+
+<div id="ebay-results-wrap" class="hidden mt-4">
+    <div class="flex items-center justify-between mb-3">
+        <p class="text-xs text-zinc-500 font-oswald tracking-wide uppercase" id="ebay-results-label"></p>
+        <button onclick="closeEbayResults()" class="text-zinc-600 hover:text-zinc-400 text-xs font-oswald tracking-wide">CLOSE ✕</button>
+    </div>
+    <div id="ebay-results-loading" class="hidden text-center py-8 text-zinc-500 text-sm">
+        <i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Searching eBay...
+    </div>
+    <div id="ebay-results-empty" class="hidden text-center py-8 text-zinc-500 text-sm">
+        No raw copies found. Try a different search.
+    </div>
+    <div id="ebay-results-grid" class="grid grid-cols-2 gap-3"></div>
+</div>
+
+</div>
+
+<div id="portfolio-container">
+    <div id="portfolio-list" class="safe-grid grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+    <div id="portfolio-gallery" class="gallery-grid hidden"></div>
+</div>
+
+</div>
+
+<!-- DASHBOARD TAB -->
+
+<div id="tab-content-1" class="tab-content hidden">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="font-oswald text-xl font-semibold text-yellow-400">Performance Dashboard</h2>
+        <button onclick="renderDashboard()" title="Refresh dashboard" class="text-zinc-500 hover:text-yellow-400 transition-colors text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate-right"></i>
+            <span class="font-oswald tracking-wide">REFRESH</span>
+        </button>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-8 bg-zinc-900 rounded-3xl p-6 border border-zinc-800 overflow-x-hidden">
+            <div style="position:relative;height:190px;">
+                <canvas id="performanceChart" style="max-width:100%;"></canvas>
+            </div>
+        </div>
+        <div class="lg:col-span-4 space-y-6">
+            <div class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
+                <h3 class="stat-label mb-2">BEST FLIP</h3>
+                <div id="best-flip" class="font-medium text-emerald-400 truncate"></div>
+            </div>
+            <div class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
+                <h3 class="stat-label mb-2">WORST FLIP</h3>
+                <div id="worst-flip" class="font-medium text-red-400 truncate"></div>
+            </div>
+            <div class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800">
+                <h3 class="stat-label mb-2">TOTAL FLIPS</h3>
+                <div id="total-flips" class="text-4xl font-mono font-bold">0</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WATCHLIST TAB -->
+
+<div id="tab-content-2" class="tab-content hidden">
+    <h2 class="font-oswald text-xl font-semibold mb-6 text-yellow-400">Watchlist</h2>
+    <div class="mb-6 flex gap-3">
+        <input id="watchlist-search" type="text" placeholder="Search eBay to add to watchlist..."
+               class="flex-1 min-w-0 bg-zinc-950 border border-zinc-700 rounded-2xl px-5 py-3.5 focus:outline-none focus:border-emerald-500"
+               onkeydown="if(event.key==='Enter') searchEbayWatchlist()">
+        <button onclick="searchEbayWatchlist()"
+                class="bg-yellow-500 hover:bg-yellow-400 text-zinc-950 px-6 py-3 rounded-2xl font-oswald font-semibold whitespace-nowrap tracking-wide">
+            SEARCH
+        </button>
+    </div>
+    <div id="watchlist-ebay-wrap" class="hidden mb-6">
+        <div class="flex items-center justify-between mb-3">
+            <p class="text-xs text-zinc-500 font-oswald tracking-wide uppercase" id="watchlist-ebay-label"></p>
+            <button onclick="closeWatchlistEbay()" class="text-zinc-600 hover:text-zinc-400 text-xs font-oswald tracking-wide">CLOSE ✕</button>
+        </div>
+        <div id="watchlist-ebay-loading" class="hidden text-center py-6 text-zinc-500 text-sm">
+            <i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Searching eBay...
+        </div>
+        <div id="watchlist-ebay-empty" class="hidden text-center py-6 text-zinc-500 text-sm">No results found.</div>
+        <div id="watchlist-ebay-grid" class="grid grid-cols-2 gap-3"></div>
+    </div>
+    <div id="watchlist-grid" class="safe-grid grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+</div>
+
+<!-- HISTORY TAB -->
+
+<div id="tab-content-3" class="tab-content hidden">
+    <h2 class="font-oswald text-xl font-semibold mb-6 text-yellow-400">Transaction History</h2>
+    <div class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 overflow-x-hidden">
+        <div id="transaction-feed" class="divide-y divide-zinc-800"></div>
+    </div>
+</div>
+
+<!-- LOG TAB -->
+
+<!-- SIMULATION LOG: Remove this entire block to disable the log tab -->
+
+<div id="tab-content-4" class="tab-content hidden">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="font-oswald text-xl font-semibold text-yellow-400">Simulation Log</h2>
+        <button onclick="renderLog()" title="Refresh log" class="text-zinc-500 hover:text-yellow-400 transition-colors text-sm flex items-center gap-1.5">
+            <i class="fa-solid fa-rotate-right"></i>
+            <span class="font-oswald tracking-wide">REFRESH</span>
+        </button>
+    </div>
+    <div class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 overflow-x-hidden">
+        <div id="sim-log-feed" class="divide-y divide-zinc-800">
+            <div class="text-zinc-500 text-sm text-center py-8">Enable Simulated Market to begin logging.</div>
+        </div>
+    </div>
+</div>
+<!-- END SIMULATION LOG -->
+
+</div>
+
+<!-- Footer -->
+
+<footer class="bg-zinc-900 border-t border-zinc-800 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
+            <div class="text-xs text-zinc-400">
+                <p class="font-medium text-amber-400 mb-2">FOR ENTERTAINMENT PURPOSES ONLY</p>
+                <p>ComicBookGame.com is a comic book collection simulator. Market simulation prices are fictional. eBay search results reflect real active listing data retrieved via the official eBay API.</p>
+<p>ComicBookGame.com is an independent eBay affiliate and participates in the eBay Partner Network. Clicking through to eBay listings may result in a commission on qualifying purchases.</p>
+<p>All comic book characters, logos, titles, and cover images are the property of their respective copyright holders and are referenced here for entertainment and educational purposes under the fair use provision of US Code: Title 17, Sec. 107.</p>
+                <p class="mt-2">This game is <strong>not financial advice. </strong>Do not use it for real investment decisions.</p>
+            </div>
+            <div class="flex flex-col items-center md:items-start gap-2 text-sm">
+                <a href="#" onclick="showPage('about')" class="hover:text-emerald-400 transition-colors">About ComicBookGame</a>
+                <a href="#" onclick="showPage('rules')" class="hover:text-emerald-400 transition-colors">How To Play</a>
+                <a href="#" onclick="showRoadmap()" class="hover:text-emerald-400 transition-colors">Roadmap</a>
+                <a href="#" onclick="showPage('privacy')" class="hover:text-emerald-400 transition-colors">Privacy Policy</a>
+                <a href="#" onclick="showPage('contact')" class="hover:text-emerald-400 transition-colors">Contact Me</a>
+                <a href="#" onclick="resetGame()" class="hover:text-red-400 text-zinc-500 transition-colors">Reset Game</a>
+                <button onclick="toggleMarket()" id="market-toggle"
+                        class="mt-1 flex items-center gap-2 text-xs text-zinc-500 hover:text-yellow-400 transition-colors">
+                    <span id="market-dot" class="inline-block w-2 h-2 rounded-full bg-zinc-600"></span>
+                    <span id="market-label">Simulated Market: Off</span>
+                </button>
+                <!-- SIMULATION LOG: Remove this label+checkbox to disable auto-work -->
+                <label class="mt-1 flex items-center gap-2 text-xs text-zinc-500 hover:text-yellow-400 transition-colors cursor-pointer">
+                    <input type="checkbox" id="auto-work-toggle" onchange="toggleAutoWork()" class="accent-emerald-500">
+                    <span>Auto-Work each month</span>
+                </label>
+                <!-- END SIMULATION LOG -->
+                <!-- PRICE TICKER: Remove this label+checkbox to disable ticker toggle -->
+                <label class="mt-1 flex items-center gap-2 text-xs text-zinc-500 hover:text-yellow-400 transition-colors cursor-pointer">
+                    <input type="checkbox" id="ticker-toggle" onchange="toggleTicker()" class="accent-emerald-500" checked>
+                    <span>Price Ticker</span>
+                </label>
+                <!-- END PRICE TICKER -->
+            </div>
+            <div class="text-xs text-zinc-500 flex flex-col items-center md:items-end">
+                <p>© 2026 ComicBookGame!</p>
+                <p class="mt-1">The Comic Book Collection Simulator</p>
+            </div>
+        </div>
+        <div class="mt-6 pt-6 border-t border-zinc-800 flex justify-center gap-5">
+            <a href="https://x.com/ne1up" target="_blank" rel="noopener noreferrer" class="text-zinc-500 hover:text-sky-400 transition-colors text-xl" aria-label="Twitter / X">
+    <i class="fa-brands fa-x-twitter"></i>
+</a>
+            <a href="https://ne1up.itch.io" target="_blank" rel="noopener noreferrer" class="text-zinc-500 hover:text-red-400 transition-colors text-xl" aria-label="Itch.io">
+    <i class="fa-brands fa-itch-io"></i>
+</a>
+        </div>
+    </div>
+</footer>
+
+<!-- About Modal -->
+
+<div id="about-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-lg w-full border border-zinc-700 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center gap-3 mb-6">
+            <i class="fa-solid fa-infinity text-2xl text-emerald-500"></i>
+            <h2 class="text-xl font-semibold">About ComicBookGame!</h2>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-gamepad text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">What is this?</span>
+                </div>
+                <p class="text-xs text-zinc-400">ComicBookGame! is a simulation game made for comic book collectors, by a collector. Buy, hold, and flip comics without spending a real dime.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-book-open text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">Learn the hobby</span>
+                </div>
+                <p class="text-xs text-zinc-400">Practice the art of identifying key issues, timing the market, and managing a collection, all within a risk-free sandbox environment.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-400 text-sm"></i>
+                    <span class="text-sm font-medium">Important note</span>
+                </div>
+                <p class="text-xs text-zinc-400">This is a comic book collection simulator. Prices shown during eBay search reflect real active listings via the eBay API. All simulated market prices are fictional. ComicBookGame.com is an independent project and eBay affiliate. We are not affiliated with CGC, CBCS, or any grading company.
+</p>
+            </div>
+        </div>
+        <button onclick="hideAbout()" class="mt-8 w-full bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium transition-colors">CLOSE</button>
+    </div>
+</div>
+
+<!-- Rules Modal -->
+
+<div id="rules-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-lg w-full border border-zinc-700 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center gap-3 mb-6">
+            <i class="fa-solid fa-scroll text-2xl text-emerald-500"></i>
+            <h2 class="text-xl font-semibold">How to Play</h2>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-toggle-on text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">Starting the Simulation</span>
+                </div>
+                <p class="text-xs text-zinc-400">Enable <strong class="text-zinc-300">Simulated Market</strong> from the footer to start the clock. Time moves in months. One tick every 20 seconds. The Log tab records everything that happens.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-house text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">Cost of Living</span>
+                </div>
+                <p class="text-xs text-zinc-400">Every month, <strong class="text-zinc-300">$50.00</strong> is deducted from your Cash for cost of living. If you can't cover it, the payment is skipped and you receive a strike. <strong class="text-red-400">Three consecutive strikes and it's Game Over.</strong> Paying resets your strike count.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-briefcase text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">Work or Event</span>
+                </div>
+                <p class="text-xs text-zinc-400">Each month you choose: <strong class="text-zinc-300">Work</strong> to earn $60.00, or attend an <strong class="text-zinc-300">Event</strong>, a local sale or convention where discounted comics are available to add to your portfolio. You can also enable <strong class="text-zinc-300">Auto-Work</strong> in the footer to skip the choice and earn automatically.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-chart-line text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">The Market</span>
+                </div>
+                <p class="text-xs text-zinc-400">While the simulation runs, comic prices fluctuate each tick with a slight upward bias mimicking long-term appreciation. Watch your portfolio value in the Dashboard and sell at the right moment for maximum profit.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-skull text-red-400 text-sm"></i>
+                    <span class="text-sm font-medium">Game Over</span>
+                </div>
+                <p class="text-xs text-zinc-400">If you miss cost of living payments three months in a row, the game ends. Sell comics to stay liquid, work consistently, and don't let your Cash run dry.</p>
+            </div>
+        </div>
+        <button onclick="hideRules()" class="mt-8 w-full bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium transition-colors">CLOSE</button>
+    </div>
+</div>
+
+<!-- Privacy Modal -->
+
+<div id="privacy-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-lg w-full border border-zinc-700 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center gap-3 mb-6">
+            <i class="fa-solid fa-shield-halved text-2xl text-emerald-500"></i>
+            <h2 class="text-xl font-semibold">Privacy Policy</h2>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-database text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">Data storage</span>
+                </div>
+                <p class="text-xs text-zinc-400">All game data is stored locally in your browser using localStorage. Nothing is sent to any server except when using the eBay search feature, which transmits your search query through our secure proxy to retrieve listing data. No personal information is ever collected or stored.
+</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-eye-slash text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">No tracking</span>
+                </div>
+                <p class="text-xs text-zinc-400">We do not collect, store, or transmit any personal or financial data. No cookies, no analytics, no accounts required. When you click through to an eBay listing, eBay's own privacy policy applies. ComicBookGame.com participates in the eBay Partner Network and may earn a commission on qualifying purchases.
+</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-circle-info text-amber-400 text-sm"></i>
+                    <span class="text-sm font-medium">Disclaimer</span>
+                </div>
+                <p class="text-xs text-zinc-400">Simulated market prices are fictional and for entertainment purposes only. Real eBay listing prices are provided for reference and reflect live market data at time of search. Nothing on this site constitutes financial or investment advice.
+</p>
+            </div>
+        </div>
+        <button onclick="hidePrivacy()" class="mt-8 w-full bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium transition-colors">CLOSE</button>
+    </div>
+</div>
+
+<!-- Contact Modal -->
+
+<div id="contact-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-lg w-full border border-zinc-700 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center gap-3 mb-6">
+            <i class="fa-solid fa-envelope text-2xl text-emerald-500"></i>
+            <h2 class="text-xl font-semibold">Contact Me</h2>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-paper-plane text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">Get in touch</span>
+                </div>
+                <p class="text-xs text-zinc-400">Have feedback, a bug report, or just want to talk comics? I'd love to hear from you.</p>
+                <p class="text-xs text-emerald-400 font-mono mt-2">paleodev@gmail.com.com</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-brands fa-x-twitter text-emerald-400 text-sm"></i>
+                    <span class="text-sm font-medium">Follow along</span>
+                </div>
+                <p class="text-xs text-zinc-400">Find me on social media for updates, new features, and comic collecting talk.</p>
+            </div>
+<div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700 text-center">
+    <div class="text-2xl mb-2">☕</div>
+    <p class="text-sm font-medium text-yellow-400 mb-1">Support ComicBookGame.com</p>
+    <p class="text-xs text-zinc-400 mb-3">If you enjoy the game, consider buying me a coffee. It helps keep the lights on and new features coming.</p>
+    <a href="https://ko-fi.com/ne1up" target="_blank" rel="noopener noreferrer"
+       class="inline-block bg-yellow-500 hover:bg-yellow-400 text-zinc-950 px-6 py-2.5 rounded-2xl font-oswald font-semibold tracking-wide text-sm">
+        SUPPORT THE GAME
+    </a>
+</div>
+    </div>
+        <button onclick="hideContact()" class="mt-8 w-full bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium transition-colors">CLOSE</button>
+    </div>
+</div>
+
+<!-- Roadmap Modal -->
+
+<div id="roadmap-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-lg w-full border border-zinc-700 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center gap-3 mb-6">
+            <i class="fa-solid fa-map text-2xl text-emerald-500"></i>
+            <h2 class="text-xl font-semibold">Roadmap</h2>
+        </div>
+        <div class="space-y-4">
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-mono px-2 py-0.5 rounded-lg bg-emerald-900 text-emerald-400">LIVE</span>
+                    <span class="text-sm font-medium">Core Simulator</span>
+                </div>
+                <p class="text-xs text-zinc-400">Portfolio management, manual entry, eBay integration, watchlist, transaction history, market simulation, and performance dashboard.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-mono px-2 py-0.5 rounded-lg bg-amber-900 text-amber-400">SOON</span>
+                    <span class="text-sm font-medium">History Edition</span>
+                </div>
+                <p class="text-xs text-zinc-400">Start your collecting career in the Golden, Silver, or Bronze Age of comics. Progress through the years, challenging your memory and your budget against real historical data.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-mono px-2 py-0.5 rounded-lg bg-amber-900 text-amber-400">TESTING</span>
+                    <span class="text-sm font-medium">Roguelike Mode</span>
+                </div>
+                <p class="text-xs text-zinc-400">Pass time working to afford your hobby or attend simulated shops and comic cons to buy, sell, and trade. Send comics to CGC for grading and more.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-mono px-2 py-0.5 rounded-lg bg-zinc-700 text-zinc-400">PLANNED</span>
+                    <span class="text-sm font-medium">Convention Mode</span>
+                </div>
+                <p class="text-xs text-zinc-400">The MMO Edition. Chat, trade, and connect with comic book collectors around the world in a fully-simulated market.</p>
+            </div>
+            <div class="bg-zinc-800 rounded-2xl p-4 border border-zinc-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-mono px-2 py-0.5 rounded-lg bg-zinc-700 text-zinc-400">PLANNED</span>
+                    <span class="text-sm font-medium">Research Mode</span>
+                </div>
+                <p class="text-xs text-zinc-400">Artists, writers, and other creators are automatically added to your portfolio when a comic is imported. Research Mode maps those connections, surfacing key opportunities.</p>
+            </div>
+        </div>
+        <button onclick="hideRoadmap()" class="mt-8 w-full bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium transition-colors">CLOSE</button>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+
+<div id="detail-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-6 max-w-md w-full border border-zinc-700 max-h-[85vh] overflow-y-auto">
+        <img id="detail-image" class="comic-cover w-full mx-auto mb-6" alt="Comic Cover">
+        <h3 id="detail-title" class="text-xl font-semibold mb-4"></h3>
+
+<div class="grid grid-cols-2 gap-4 text-sm mb-6">
+    <div>Bought: <span id="detail-buy" class="font-mono"></span></div>
+    <div>Current: <span id="detail-current" class="font-mono text-emerald-400"></span></div>
+</div>
+
+<div id="detail-pl" class="text-lg font-medium mb-4"></div>
+
+<!-- Status badges -->
+
+<div id="detail-status" class="flex flex-wrap gap-2 mb-4"></div>
+
+<div id="detail-chart-wrap" class="hidden mb-6">
+    <p class="stat-label mb-2">Price History</p>
+    <div style="position:relative;height:100px;">
+        <canvas id="detail-chart"></canvas>
+    </div>
+</div>
+
+<div id="detail-notes" class="text-sm text-zinc-400 mb-6 whitespace-pre-wrap"></div>
+
+<!-- CGC/Signing action buttons — hidden based on item state -->
+
+<div id="detail-actions" class="flex flex-col gap-2 mb-6"></div>
+
+<div class="flex gap-3">
+    <button onclick="hideDetailModal()"
+            class="flex-1 bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium">CLOSE</button>
+    <button onclick="sellCurrentItem()"
+            class="flex-1 bg-red-600 hover:bg-red-500 py-3.5 rounded-2xl font-medium">SELL ITEM</button>
+</div>
+
+</div>
+
+</div>
+
+<!-- Difficulty Modal -->
+
+<div id="difficulty-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-sm w-full border border-zinc-700 text-center">
+        <i class="fa-solid fa-layer-group text-4xl text-emerald-500 mb-4"></i>
+        <h2 class="font-bangers text-3xl tracking-wide mb-1 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">ComicBookGame!</h2>
+        <p class="text-zinc-400 text-sm mb-8">Choose your starting budget</p>
+        <div class="space-y-3">
+            <button onclick="startGame(500)" class="w-full bg-emerald-700 hover:bg-emerald-600 py-4 rounded-2xl font-medium text-left px-6 flex justify-between items-center">
+                <span>😎 Easy</span><span class="font-mono text-emerald-300">$500.00</span>
+            </button>
+            <button onclick="startGame(250)" class="w-full bg-zinc-700 hover:bg-zinc-600 py-4 rounded-2xl font-medium text-left px-6 flex justify-between items-center">
+                <span>🤔 Medium</span><span class="font-mono text-zinc-300">$250.00</span>
+            </button>
+            <button onclick="startGame(10)" class="w-full bg-red-900 hover:bg-red-800 py-4 rounded-2xl font-medium text-left px-6 flex justify-between items-center">
+                <span>💀 Hard</span><span class="font-mono text-red-300">$10.00</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+
+<div id="preview-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-6 max-w-md w-full border border-zinc-700">
+        <h3 class="text-lg font-semibold mb-4">Import Comic</h3>
+        <div class="flex gap-4">
+            <img id="preview-image" class="comic-cover w-28 h-auto flex-shrink-0" alt="Comic Cover">
+            <div class="flex-1 min-w-0">
+                <h4 id="preview-title" class="font-medium leading-tight text-sm mb-3"></h4>
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center">
+                        <span class="stat-label">Asking Price</span>
+                        <span id="preview-price" class="text-lg font-mono text-emerald-400"></span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="stat-label">Est. Fair Value</span>
+                        <span id="preview-fmv" class="text-sm font-mono text-zinc-400"></span>
+                    </div>
+                    <div id="preview-deal-wrap" class="mt-2">
+                        <span id="preview-deal-badge" class="text-xs font-oswald tracking-wide px-2 py-1 rounded-lg"></span>
+                    </div>
+                    <div id="preview-ebay-link-wrap" class="hidden mt-1">
+                        <a id="preview-ebay-link" href="#" target="_blank" rel="noopener noreferrer"
+                           class="text-xs font-oswald tracking-wide text-zinc-500 hover:text-yellow-400 transition-colors">View listing on eBay ↗</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="preview-funds-warning" class="hidden mt-4 bg-red-950 border border-red-800 text-red-400 text-sm rounded-2xl px-4 py-3 text-center">
+            ⚠️ Not enough cash — you have <span id="preview-cash-available"></span>
+        </div>
+        <div class="mt-6 flex gap-3">
+            <button id="preview-buy-btn" onclick="confirmBuyFromPreview()"
+                    class="flex-1 bg-yellow-500 hover:bg-yellow-400 text-zinc-950 py-3.5 rounded-2xl font-oswald font-semibold tracking-wide">BUY NOW</button>
+            <button onclick="hidePreview()"
+                    class="flex-1 bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium">CANCEL</button>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Entry Modal -->
+
+<div id="manual-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4 overflow-y-auto">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-lg w-full border border-zinc-700 my-8">
+        <h3 class="text-xl font-semibold mb-6">Manual Comic Entry</h3>
+        <div class="space-y-5">
+            <div>
+                <label class="block text-sm text-zinc-400 mb-1">Title <span class="text-red-400">*</span></label>
+                <input id="manual-title" type="text" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-1">Issue Number</label>
+                    <input id="manual-issue" type="text" placeholder="e.g. #300" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-zinc-400 mb-1">Purchase Price ($) <span class="text-red-400">*</span></label>
+                    <input id="manual-price" type="number" step="0.01" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm text-zinc-400 mb-1">Cover Image URL</label>
+                <input id="manual-image" type="text" placeholder="https://example.com/cover.jpg"
+                       class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+                <label class="block text-sm text-zinc-400 mb-1">Condition</label>
+                <select id="manual-condition" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500">
+                    <option value="Unknown">Unknown</option>
+                    <option value="Poor">Poor (0.5–1.0)</option>
+                    <option value="Fair">Fair (1.5–2.0)</option>
+                    <option value="Good">Good (2.5–3.0)</option>
+                    <option value="Very Good">Very Good (3.5–4.0)</option>
+                    <option value="Fine">Fine (5.0–6.0)</option>
+                    <option value="Very Fine">Very Fine (7.0–8.0)</option>
+                    <option value="Near Mint">Near Mint (9.0–9.6)</option>
+                    <option value="Mint">Mint (9.8–10.0)</option>
+                </select>
+            </div>
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" id="manual-cgc" class="w-5 h-5 accent-emerald-500" onchange="toggleManualCGCGrade()">
+                    <label for="manual-cgc" class="text-sm">CGC Graded</label>
+                </div>
+                <div id="manual-cgc-grade-wrap" class="hidden pl-8">
+                    <label class="block text-sm text-zinc-400 mb-1">CGC Grade</label>
+                    <select id="manual-cgc-grade" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500">
+                        <option value="1.0">1.0 — Fair</option>
+                        <option value="1.5">1.5 — Fair/Good</option>
+                        <option value="2.0">2.0 — Good</option>
+                        <option value="2.5">2.5 — Good+</option>
+                        <option value="3.0">3.0 — Good/Very Good</option>
+                        <option value="3.5">3.5 — Very Good-</option>
+                        <option value="4.0">4.0 — Very Good</option>
+                        <option value="4.5">4.5 — Very Good+</option>
+                        <option value="5.0">5.0 — Fine-</option>
+                        <option value="5.5">5.5 — Fine-</option>
+                        <option value="6.0">6.0 — Fine</option>
+                        <option value="6.5">6.5 — Fine+</option>
+                        <option value="7.0">7.0 — Fine/Very Fine</option>
+                        <option value="7.5">7.5 — Very Fine-</option>
+                        <option value="8.0">8.0 — Very Fine</option>
+                        <option value="8.5">8.5 — Very Fine+</option>
+                        <option value="9.0">9.0 — Very Fine/Near Mint</option>
+                        <option value="9.2">9.2 — Near Mint-</option>
+                        <option value="9.4">9.4 — Near Mint</option>
+                        <option value="9.6">9.6 — Near Mint+</option>
+                        <option value="9.8" selected>9.8 — Near Mint/Mint</option>
+                        <option value="10.0">10.0 — Gem Mint</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" id="manual-signed" class="w-5 h-5 accent-yellow-500">
+                    <label for="manual-signed" class="text-sm">Signed</label>
+                </div>
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" id="manual-cgcss" class="w-5 h-5 accent-yellow-500">
+                    <label for="manual-cgcss" class="text-sm">CGC Signature Series (SS)</label>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm text-zinc-400 mb-1">Additional Notes</label>
+                <textarea id="manual-notes" rows="3" class="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3 focus:outline-none focus:border-emerald-500 resize-y"></textarea>
+            </div>
+        </div>
+        <div class="mt-8 flex gap-3">
+            <button onclick="hideManualModal()" class="flex-1 bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium">CANCEL</button>
+            <button onclick="confirmManualEntry()" class="flex-1 bg-yellow-500 hover:bg-yellow-400 text-zinc-950 py-3.5 rounded-2xl font-oswald font-semibold tracking-wide">ADD TO PORTFOLIO</button>
+        </div>
+    </div>
+</div>
+
+<!-- SIMULATION MODALS: Remove this entire block to disable monthly events -->
+
+<!-- Game Over Modal -->
+
+<div id="gameover-modal" class="hidden fixed inset-0 bg-black/95 flex items-center justify-center px-4" style="z-index:70">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-sm w-full border border-red-700 text-center">
+        <div class="text-5xl mb-4">💀</div>
+        <h2 class="font-bangers text-5xl tracking-wide text-red-500 mb-2">GAME OVER</h2>
+        <p class="text-zinc-400 text-sm mb-2">You couldn't keep the lights on.</p>
+        <p class="text-zinc-500 text-xs mb-8">Survived <span id="gameover-month" class="text-zinc-300 font-mono"></span> months before the bills won.</p>
+        <button onclick="resetGame()" class="w-full bg-red-700 hover:bg-red-600 py-4 rounded-2xl font-oswald font-semibold tracking-wide text-lg">
+            START OVER
+        </button>
+    </div>
+</div>
+
+<!-- Monthly Choice Modal (z-[60] so it layers above detail/preview modals) -->
+
+<div id="monthly-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center px-4" style="z-index:60">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-sm w-full border border-yellow-600 text-center">
+        <div class="text-3xl mb-2">📅</div>
+        <h2 class="font-bangers text-2xl tracking-wide text-yellow-400 mb-1">A Month Has Passed</h2>
+        <p id="monthly-month-label" class="text-zinc-400 text-sm mb-6"></p>
+        <div class="bg-zinc-800 rounded-2xl p-3 mb-6 text-sm text-zinc-300">
+            Cost of living: <span class="text-red-400 font-mono">-$50.00</span> deducted
+        </div>
+        <p class="text-zinc-300 text-sm mb-5">What will you do this month?</p>
+        <div class="flex flex-col gap-3">
+            <button onclick="chooseWork()" class="w-full bg-emerald-700 hover:bg-emerald-600 py-4 rounded-2xl font-oswald font-semibold tracking-wide text-lg">
+                💼 WORK <span class="text-emerald-300 text-sm font-normal ml-1">+$60.00</span>
+            </button>
+            <button onclick="chooseEvent()" class="w-full bg-yellow-600 hover:bg-yellow-500 text-zinc-950 py-4 rounded-2xl font-oswald font-semibold tracking-wide text-lg">
+                🎪 EVENT
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Event Shop Modal -->
+
+<div id="event-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center px-4" style="z-index:60">
+    <div class="bg-zinc-900 rounded-3xl p-6 max-w-lg w-full border border-zinc-700 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center gap-3 mb-1">
+            <span id="event-icon" class="text-2xl"></span>
+            <h2 id="event-name" class="font-bangers text-2xl tracking-wide text-yellow-400"></h2>
+        </div>
+        <p id="event-desc" class="text-zinc-400 text-sm mb-5"></p>
+        <div id="event-books" class="grid grid-cols-2 gap-4 mb-6"></div>
+        <button onclick="closeEvent()" class="w-full bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium">
+            I'M NOT INTERESTED
+        </button>
+    </div>
+</div>
+
+<!-- END SIMULATION MODALS -->
+
+<!-- CGC Grading Modal -->
+
+<!-- CGC GRADING: Remove this block to disable grading -->
+
+<div id="cgc-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-sm w-full border border-amber-700 text-center">
+        <div class="text-4xl mb-3">🏅</div>
+        <h2 class="font-bangers text-2xl tracking-wide text-amber-400 mb-1">Send to CGC?</h2>
+        <p id="cgc-modal-title" class="text-zinc-300 text-sm mb-4"></p>
+        <div class="bg-zinc-800 rounded-2xl p-4 mb-6 text-sm space-y-2 text-left">
+            <div class="flex justify-between"><span class="text-zinc-400">Submission fee</span><span class="text-red-400 font-mono">-$25.00</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Turnaround</span><span class="text-zinc-300">3 months</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Grade</span><span class="text-zinc-300">Randomized by condition</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Your cash</span><span id="cgc-modal-cash" class="text-emerald-400 font-mono"></span></div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="hideCGCModal()" class="flex-1 bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium">CANCEL</button>
+            <button onclick="confirmSendToCGC()" class="flex-1 bg-amber-600 hover:bg-amber-500 py-3.5 rounded-2xl font-oswald font-semibold tracking-wide">SUBMIT</button>
+        </div>
+    </div>
+</div>
+
+<!-- CGC Signature Series Send-Away Modal -->
+
+<div id="cgcss-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+    <div class="bg-zinc-900 rounded-3xl p-8 max-w-sm w-full border border-yellow-600 text-center">
+        <div class="text-4xl mb-3">✍️</div>
+        <h2 class="font-bangers text-2xl tracking-wide text-yellow-400 mb-1">CGC Signature Series</h2>
+        <p id="cgcss-modal-title" class="text-zinc-300 text-sm mb-4"></p>
+        <div class="bg-zinc-800 rounded-2xl p-4 mb-6 text-sm space-y-2 text-left">
+            <div class="flex justify-between"><span class="text-zinc-400">All-inclusive fee</span><span class="text-red-400 font-mono">-$100.00</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Turnaround</span><span class="text-zinc-300">6 months</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Returns as</span><span class="text-yellow-400">CGC SS — Graded</span></div>
+            <div class="flex justify-between"><span class="text-zinc-400">Your cash</span><span id="cgcss-modal-cash" class="text-emerald-400 font-mono"></span></div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="hideCGCSSModal()" class="flex-1 bg-zinc-700 hover:bg-zinc-600 py-3.5 rounded-2xl font-medium">CANCEL</button>
+            <button onclick="confirmSendToCGCSS()" class="flex-1 bg-yellow-600 hover:bg-yellow-500 text-zinc-950 py-3.5 rounded-2xl font-oswald font-semibold tracking-wide">SUBMIT</button>
+        </div>
+    </div>
+</div>
+<!-- END CGC GRADING -->
+
+<!-- Toast -->
+
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 border border-yellow-500 text-yellow-400 px-6 py-3 rounded-2xl shadow-2xl text-sm font-oswald tracking-wide">
+    <span id="toast-text"></span>
+</div>
+
+<script>
+    let cash = 1000;
+    let startingCash = 1000;
+    let portfolio = [];
+    let watchlist = [];
+    let transactions = [];
+    let currentPreview = null;
+    let currentViewMode = 'list';
+    let selectedItemIndex = null;
+
+    // --- SIMULATION LOG STATE ---
+    let simMonth = 0;
+    let gameLogs = [];
+    let autoWork = false;
+    let currentEvent = null;
+    let missedPayments = 0;
+    // --- END SIMULATION LOG STATE ---
+
+    // --- CGC GRADING STATE ---
+    let pendingCGCIndex = null;   // portfolio index of item being sent to CGC
+    let pendingCGCSSIndex = null; // portfolio index of item being sent for SS
+    // --- END CGC GRADING STATE ---
+
+    function saveData() {
+        localStorage.setItem('posterflip_v5_cash', cash);
+        localStorage.setItem('posterflip_v5_startingCash', startingCash);
+        localStorage.setItem('posterflip_v5_portfolio', JSON.stringify(portfolio));
+        localStorage.setItem('posterflip_v5_watchlist', JSON.stringify(watchlist));
+        localStorage.setItem('posterflip_v5_transactions', JSON.stringify(transactions));
+        localStorage.setItem('posterflip_v5_portfolioHistory', JSON.stringify(portfolioHistory));
+        // SIMULATION LOG
+        localStorage.setItem('posterflip_v5_simMonth', simMonth);
+        localStorage.setItem('posterflip_v5_gameLogs', JSON.stringify(gameLogs));
+        localStorage.setItem('posterflip_v5_autoWork', autoWork);
+        localStorage.setItem('posterflip_v5_missedPayments', missedPayments);
+        // END SIMULATION LOG
+    }
+
+    function loadData() {
+        cash = parseFloat(localStorage.getItem('posterflip_v5_cash')) || 1000;
+        startingCash = parseFloat(localStorage.getItem('posterflip_v5_startingCash')) || 1000;
+        portfolio = JSON.parse(localStorage.getItem('posterflip_v5_portfolio')) || [];
+        watchlist = JSON.parse(localStorage.getItem('posterflip_v5_watchlist')) || [];
+        transactions = JSON.parse(localStorage.getItem('posterflip_v5_transactions')) || [];
+        portfolioHistory = JSON.parse(localStorage.getItem('posterflip_v5_portfolioHistory')) || [];
+        // SIMULATION LOG
+        simMonth = parseInt(localStorage.getItem('posterflip_v5_simMonth')) || 0;
+        gameLogs = JSON.parse(localStorage.getItem('posterflip_v5_gameLogs')) || [];
+        autoWork = localStorage.getItem('posterflip_v5_autoWork') === 'true';
+        missedPayments = parseInt(localStorage.getItem('posterflip_v5_missedPayments')) || 0;
+        // END SIMULATION LOG
+    }
+
+    function formatCurrency(n) {
+        return new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'}).format(n);
+    }
+
+    function updateMetrics() {
+        const portfolioValue = portfolio.reduce((sum, item) => sum + (item.currentPrice || 0), 0);
+        const totalPL = (cash + portfolioValue) - startingCash;
+        const plEl = document.getElementById('total-pl');
+
+        document.getElementById('cash').textContent = formatCurrency(cash);
+        document.getElementById('portfolio-value').textContent = formatCurrency(portfolioValue);
+        plEl.textContent = (totalPL >= 0 ? '+' : '') + formatCurrency(totalPL);
+        plEl.className = `text-sm font-mono font-bold truncate ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+        updateTicker(); // PRICE TICKER
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        document.getElementById('toast-text').textContent = msg;
+        t.classList.remove('hidden');
+        setTimeout(() => t.classList.add('hidden'), 2800);
+    }
+
+    function switchTab(n) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`tab-content-${n}`).classList.remove('hidden');
+
+        document.querySelectorAll('.tab-button').forEach((el, i) => {
+            el.classList.toggle('border-b-2', i === n);
+            el.classList.toggle('border-yellow-400', i === n);
+            el.classList.toggle('text-yellow-400', i === n);
+            el.classList.toggle('text-zinc-400', i !== n);
+        });
+
+        if (n === 0) renderPortfolio();
+        if (n === 1) renderDashboard();
+        if (n === 2) renderWatchlist();
+        if (n === 3) renderTransactions();
+        if (n === 4) renderLog(); // SIMULATION LOG
+    }
+
+    function setViewMode(mode) {
+        currentViewMode = mode;
+        document.getElementById('view-list').classList.toggle('bg-zinc-700', mode === 'list');
+        document.getElementById('view-gallery').classList.toggle('bg-zinc-700', mode === 'gallery');
+        
+        document.getElementById('portfolio-list').classList.toggle('hidden', mode !== 'list');
+        document.getElementById('portfolio-gallery').classList.toggle('hidden', mode !== 'gallery');
+        
+        if (mode === 'gallery') renderGallery();
+    }
+
+    function renderPortfolio() {
+        renderListView();
+        if (currentViewMode === 'gallery') renderGallery();
+    }
+
+    function renderListView() {
+        const grid = document.getElementById('portfolio-list');
+        grid.innerHTML = '';
+        document.getElementById('portfolio-count').textContent = portfolio.length;
+
+        if (portfolio.length === 0) {
+            grid.innerHTML = `<div class="col-span-full py-20 text-center text-zinc-500">
+                Your portfolio is empty.<br>Use IMPORT or MANUAL to add comics.
+            </div>`;
+            return;
+        }
+
+        portfolio.forEach((item, i) => {
+            const pl = item.buyPrice ? ((item.currentPrice - item.buyPrice) / item.buyPrice * 100).toFixed(1) : 0;
+            const card = document.createElement('div');
+            card.className = "bg-zinc-900 border border-zinc-800 rounded-3xl p-5 card-hover card-comic transition-colors duration-200";
+            const statusBadges = [];
+            if (item.cgcSS)          statusBadges.push(`<span class="text-xs font-oswald px-1.5 py-0.5 rounded bg-yellow-900 text-yellow-400">CGC SS</span>`);
+            else if (item.cgcGraded) statusBadges.push(`<span class="text-xs font-oswald px-1.5 py-0.5 rounded bg-amber-900 text-amber-400">CGC ${item.cgcGrade || ''}</span>`);
+            if (item.signed && !item.cgcSS) statusBadges.push(`<span class="text-xs font-oswald px-1.5 py-0.5 rounded bg-blue-900 text-blue-400">Signed</span>`);
+            if (item.gradingStatus)  statusBadges.push(`<span class="text-xs font-oswald px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">⏳ Grading</span>`);
+            card.innerHTML = `
+                <div class="flex gap-4">
+                    <img src="${item.image}" class="comic-cover w-20 h-auto flex-shrink-0 cursor-pointer" alt="${item.title}" onclick="showDetailModal(${i})">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-sm line-clamp-2 cursor-pointer hover:text-emerald-400 transition-colors" onclick="showDetailModal(${i})">${item.title}</div>
+                        <div class="text-xs text-zinc-500 mt-1">${new Date(item.buyDate).toLocaleDateString()}</div>
+                        ${statusBadges.length ? `<div class="flex flex-wrap gap-1 mt-1">${statusBadges.join('')}</div>` : ''}
+                        <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                            <div>Bought: <span class="font-mono">${formatCurrency(item.buyPrice)}</span></div>
+                            <div>Now: <span class="font-mono text-emerald-400">${formatCurrency(item.currentPrice)}</span></div>
+                        </div>
+                        <div class="mt-5 flex justify-between items-center">
+                            <span class="${pl >= 0 ? 'text-emerald-400' : 'text-red-400'} font-medium">${pl >= 0 ? '▲' : '▼'} ${pl}%</span>
+                            <button onclick="sellItem(${i})" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-2xl text-xs font-medium">SELL</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function renderGallery() {
+        const container = document.getElementById('portfolio-gallery');
+        container.innerHTML = '';
+        document.getElementById('portfolio-count').textContent = portfolio.length;
+
+        if (portfolio.length === 0) {
+            container.innerHTML = `<div class="col-span-full py-20 text-center text-zinc-500">
+                Your portfolio is empty.<br>Use IMPORT or MANUAL to add comics.
+            </div>`;
+            return;
+        }
+
+        portfolio.forEach((item, index) => {
+            const div = document.createElement('div');
+            div.className = "cursor-pointer group";
+            div.innerHTML = `
+                <img src="${item.image}" class="comic-cover group-hover:scale-105 transition-transform duration-300" 
+                     alt="${item.title}" onclick="showDetailModal(${index})">
+                <div class="text-center mt-2 text-xs text-zinc-400 line-clamp-2 px-1">${item.title}</div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function showDetailModal(index) {
+        selectedItemIndex = index;
+        const item = portfolio[index];
+
+        document.getElementById('detail-image').src = item.image;
+        document.getElementById('detail-title').textContent = item.title;
+        document.getElementById('detail-buy').textContent = formatCurrency(item.buyPrice);
+        document.getElementById('detail-current').textContent = formatCurrency(item.currentPrice);
+
+        const pl = ((item.currentPrice - item.buyPrice) / item.buyPrice * 100).toFixed(1);
+        const plEl = document.getElementById('detail-pl');
+        plEl.innerHTML = `${pl >= 0 ? '▲' : '▼'} ${pl}% ${pl >= 0 ? 'Profit' : 'Loss'}`;
+        plEl.className = `text-lg font-medium ${pl >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+
+        // Status badges
+        const statusEl = document.getElementById('detail-status');
+        const badges = [];
+        if (item.condition) badges.push(`<span class="text-xs font-oswald px-2 py-1 rounded-lg bg-zinc-800 text-zinc-400">${item.condition}</span>`);
+        if (item.cgcSS)     badges.push(`<span class="text-xs font-oswald px-2 py-1 rounded-lg bg-yellow-900 text-yellow-400">✍️ CGC SS</span>`);
+        else if (item.cgcGraded) badges.push(`<span class="text-xs font-oswald px-2 py-1 rounded-lg bg-amber-900 text-amber-400">🏅 CGC ${item.cgcGrade || ''}</span>`);
+        if (item.signed && !item.cgcSS) badges.push(`<span class="text-xs font-oswald px-2 py-1 rounded-lg bg-blue-900 text-blue-400">✍️ Signed</span>`);
+        if (item.gradingStatus === 'pending-cgc') badges.push(`<span class="text-xs font-oswald px-2 py-1 rounded-lg bg-zinc-700 text-zinc-300">⏳ At CGC — returns Month ${item.gradingReturnMonth}</span>`);
+        if (item.gradingStatus === 'pending-ss')  badges.push(`<span class="text-xs font-oswald px-2 py-1 rounded-lg bg-zinc-700 text-zinc-300">⏳ CGC SS — returns Month ${item.gradingReturnMonth}</span>`);
+        statusEl.innerHTML = badges.join('');
+
+        // Mini price history chart
+        const wrap = document.getElementById('detail-chart-wrap');
+        const history = item.history || [];
+        if (history.length > 1) {
+            wrap.classList.remove('hidden');
+            const ctx = document.getElementById('detail-chart');
+            if (ctx.chartInstance) ctx.chartInstance.destroy();
+            const color = pl >= 0 ? '#10b981' : '#f87171';
+            ctx.chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: history.map((_, i) => i === 0 ? 'Buy' : `T+${i}`),
+                    datasets: [{ data: history.map(h => h.price), borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+            });
+        } else {
+            wrap.classList.add('hidden');
+        }
+
+        document.getElementById('detail-notes').textContent = item.notes || 'No additional notes.';
+
+        // Action buttons — shown based on item state
+        const actionsEl = document.getElementById('detail-actions');
+        const actions = [];
+        const isLocked = !!item.gradingStatus;
+
+        if (!isLocked && !item.cgcGraded && !item.cgcSS) {
+            // Eligible for CGC grading
+            actions.push(`<button onclick="showCGCModal(${index})" class="w-full bg-amber-700 hover:bg-amber-600 py-3 rounded-2xl font-oswald font-semibold tracking-wide text-sm">🏅 SEND TO CGC — $25 / 3 months</button>`);
+        }
+        if (!isLocked && (item.signed || !item.cgcSS) && !item.cgcGraded) {
+            // Eligible for SS send-away (raw or raw signed)
+            actions.push(`<button onclick="showCGCSSModal(${index})" class="w-full bg-yellow-700 hover:bg-yellow-600 py-3 rounded-2xl font-oswald font-semibold tracking-wide text-sm">✍️ CGC SIGNATURE SERIES — $100 / 6 months</button>`);
+        }
+        if (!isLocked && item.cgcGraded && !item.cgcSS && item.signed) {
+            // Already graded and signed — can upgrade to SS
+            actions.push(`<button onclick="showCGCSSModal(${index})" class="w-full bg-yellow-700 hover:bg-yellow-600 py-3 rounded-2xl font-oswald font-semibold tracking-wide text-sm">✍️ UPGRADE TO CGC SS — $100 / 6 months</button>`);
+        }
+        actionsEl.innerHTML = actions.join('');
+
+        document.getElementById('detail-modal').classList.remove('hidden');
+    }
+
+    function hideDetailModal() {
+        document.getElementById('detail-modal').classList.add('hidden');
+        selectedItemIndex = null;
+    }
+
+    function sellCurrentItem() {
+        if (selectedItemIndex !== null) {
+            const index = selectedItemIndex;
+            hideDetailModal();
+            sellItem(index);
+        }
+    }
+
+    // --- EBAY SEARCH SYSTEM ---
+
+    function searchEbay() {
+        const query = document.getElementById('portfolio-search').value.trim();
+        if (!query) return showToast('Enter a comic title to search');
+
+        const wrap    = document.getElementById('ebay-results-wrap');
+        const grid    = document.getElementById('ebay-results-grid');
+        const loading = document.getElementById('ebay-results-loading');
+        const empty   = document.getElementById('ebay-results-empty');
+        const label   = document.getElementById('ebay-results-label');
+
+        wrap.classList.remove('hidden');
+        loading.classList.remove('hidden');
+        grid.classList.add('hidden');
+        empty.classList.add('hidden');
+        grid.innerHTML = '';
+        label.textContent = `Results for "${query}"`;
+
+        fetch(`/.netlify/functions/ebay-search?q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(data => {
+                loading.classList.add('hidden');
+                if (!data.results || !data.results.length) {
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                grid.classList.remove('hidden');
+                grid.innerHTML = data.results.map((item, i) => {
+                    const dealClass = item.pctDiff <= -10
+                        ? 'text-emerald-400'
+                        : item.pctDiff >= 10
+                            ? 'text-red-400'
+                            : 'text-zinc-400';
+                    const dealLabel = item.pctDiff <= -10
+                        ? `▼ ${Math.abs(item.pctDiff)}% below market`
+                        : item.pctDiff >= 10
+                            ? `▲ ${item.pctDiff}% above market`
+                            : 'Near market value';
+                    const imgSrc = item.image || '';
+                    return `
+                    <div class="bg-zinc-800 border border-zinc-700 rounded-2xl p-3 flex flex-col cursor-pointer hover:border-yellow-600 transition-colors"
+                         onclick="selectEbayResult(${i})">
+                        ${imgSrc ? `<img src="${imgSrc}" class="comic-cover w-full mb-2" alt="${item.title}">` : `<div class="w-full h-32 bg-zinc-700 rounded-xl mb-2 flex items-center justify-center text-zinc-500 text-xs">No Image</div>`}
+                        <div class="text-xs font-medium line-clamp-2 mb-2 leading-tight">${item.title}</div>
+                        <div class="text-emerald-400 font-mono text-sm font-bold">${formatCurrency(item.askingPrice)}</div>
+                        ${item.fmv ? `<div class="text-zinc-500 font-mono text-xs">FMV ~${formatCurrency(item.fmv)}</div>
+                        <div class="text-xs mt-1 ${dealClass}">${dealLabel}</div>` : ''}
+                        <div class="text-zinc-600 text-xs mt-1">${item.condition}</div>
+                        ${item.listingUrl ? `<a href='${item.listingUrl}' target='_blank' rel='noopener noreferrer' onclick='event.stopPropagation()' class='mt-2 text-center text-xs font-oswald tracking-wide text-zinc-500 hover:text-yellow-400 transition-colors'>View on eBay ↗</a>` : ''}
+                    </div>`;
+                }).join('');
+
+                // Store results for selection
+                window._ebayResults = data.results;
+            })
+            .catch(() => {
+                loading.classList.add('hidden');
+                empty.classList.remove('hidden');
+                empty.textContent = 'Search failed. Check your connection and try again.';
+            });
+    }
+
+    function selectEbayResult(index) {
+        const item = window._ebayResults[index];
+        if (!item) return;
+
+        currentPreview = {
+            id:         'ebay-' + Date.now(),
+            title:      item.title,
+            price:      item.askingPrice,
+            basePrice:  item.fmv || item.askingPrice,
+            image:      item.image || '',
+            condition:  item.condition,
+            listingUrl: item.listingUrl || '',
+            notes:      `Purchased via eBay. Condition: ${item.condition}.${item.fmv ? ` Est. FMV at purchase: ${formatCurrency(item.fmv)}.` : ''}`,
+        };
+
+        document.getElementById('preview-image').src  = currentPreview.image;
+        document.getElementById('preview-title').textContent = currentPreview.title;
+        document.getElementById('preview-price').textContent = formatCurrency(currentPreview.price);
+
+        // FMV and deal badge
+        const fmvEl   = document.getElementById('preview-fmv');
+        const badgeEl = document.getElementById('preview-deal-badge');
+        if (item.fmv) {
+            fmvEl.textContent = `~${formatCurrency(item.fmv)}`;
+            if (item.pctDiff <= -10) {
+                badgeEl.textContent  = `▼ ${Math.abs(item.pctDiff)}% below market — potential deal`;
+                badgeEl.className    = 'text-xs font-oswald tracking-wide px-2 py-1 rounded-lg bg-emerald-950 text-emerald-400';
+            } else if (item.pctDiff >= 10) {
+                badgeEl.textContent  = `▲ ${item.pctDiff}% above market — potential overpay`;
+                badgeEl.className    = 'text-xs font-oswald tracking-wide px-2 py-1 rounded-lg bg-red-950 text-red-400';
+            } else {
+                badgeEl.textContent  = 'Near fair market value';
+                badgeEl.className    = 'text-xs font-oswald tracking-wide px-2 py-1 rounded-lg bg-zinc-800 text-zinc-400';
+            }
+        } else {
+            fmvEl.textContent   = 'N/A';
+            badgeEl.textContent = '';
+        }
+
+        const canAfford = cash >= currentPreview.price;
+        document.getElementById('preview-cash-available').textContent = formatCurrency(cash);
+        document.getElementById('preview-funds-warning').classList.toggle('hidden', canAfford);
+        const buyBtn = document.getElementById('preview-buy-btn');
+        buyBtn.disabled   = !canAfford;
+        buyBtn.className  = `flex-1 py-3.5 rounded-2xl font-oswald font-semibold tracking-wide ${canAfford ? 'bg-yellow-500 hover:bg-yellow-400 text-zinc-950' : 'bg-zinc-700 opacity-50 cursor-not-allowed'}`;
+
+        // Affiliate link in preview modal
+        const ebayLinkWrap = document.getElementById('preview-ebay-link-wrap');
+        const ebayLink     = document.getElementById('preview-ebay-link');
+        if (item.listingUrl) {
+            ebayLink.href = item.listingUrl;
+            ebayLinkWrap.classList.remove('hidden');
+        } else {
+            ebayLinkWrap.classList.add('hidden');
+        }
+
+        document.getElementById('preview-modal').classList.remove('hidden');
+    }
+
+    function closeEbayResults() {
+        document.getElementById('ebay-results-wrap').classList.add('hidden');
+        document.getElementById('portfolio-search').value = '';
+        window._ebayResults = [];
+    }
+
+    // --- END EBAY SEARCH SYSTEM ---
+
+    function confirmBuyFromPreview() {
+        if (!currentPreview || cash < currentPreview.price) return;
+
+        const newItem = {
+            id:                 currentPreview.id,
+            title:              currentPreview.title,
+            buyPrice:           currentPreview.price,
+            currentPrice:       currentPreview.basePrice || currentPreview.price,
+            image:              currentPreview.image,
+            buyDate:            new Date().toISOString(),
+            condition:          currentPreview.condition || 'Unknown',
+            cgcGraded:          false,
+            cgcGrade:           null,
+            signed:             false,
+            cgcSS:              false,
+            gradingStatus:      null,
+            gradingReturnMonth: null,
+            notes:              currentPreview.notes || '',
+            history:            [{ price: currentPreview.basePrice || currentPreview.price, date: new Date().toISOString() }]
+        };
+
+        cash -= currentPreview.price;
+        portfolio.push(newItem);
+        addTransaction('BUY', newItem.title, newItem.buyPrice);
+
+        showToast(`Added to Portfolio!`);
+        hidePreview();
+        closeEbayResults();
+        renderPortfolio();
+        updateMetrics();
+        saveData();
+    }
+
+    function hidePreview() {
+        document.getElementById('preview-modal').classList.add('hidden');
+        currentPreview = null;
+    }
+
+    function searchEbayWatchlist() {
+        const query = document.getElementById('watchlist-search').value.trim();
+        if (!query) return showToast('Enter a comic title to search');
+
+        const wrap    = document.getElementById('watchlist-ebay-wrap');
+        const grid    = document.getElementById('watchlist-ebay-grid');
+        const loading = document.getElementById('watchlist-ebay-loading');
+        const empty   = document.getElementById('watchlist-ebay-empty');
+        const label   = document.getElementById('watchlist-ebay-label');
+
+        wrap.classList.remove('hidden');
+        loading.classList.remove('hidden');
+        grid.classList.add('hidden');
+        empty.classList.add('hidden');
+        grid.innerHTML = '';
+        label.textContent = `Results for "${query}"`;
+
+        fetch(`/.netlify/functions/ebay-search?q=${encodeURIComponent(query)}`)
+            .then(r => r.json())
+            .then(data => {
+                loading.classList.add('hidden');
+                if (!data.results || !data.results.length) {
+                    empty.classList.remove('hidden');
+                    return;
+                }
+                grid.classList.remove('hidden');
+                window._watchlistResults = data.results;
+                grid.innerHTML = data.results.map((item, i) => `
+                    <div class="bg-zinc-800 border border-zinc-700 rounded-2xl p-3 flex flex-col cursor-pointer hover:border-yellow-600 transition-colors"
+                         onclick="addEbayToWatchlist(${i})">
+                        ${item.image ? `<img src="${item.image}" class="comic-cover w-full mb-2" alt="${item.title}">` : `<div class="w-full h-32 bg-zinc-700 rounded-xl mb-2 flex items-center justify-center text-zinc-500 text-xs">No Image</div>`}
+                        <div class="text-xs font-medium line-clamp-2 mb-1 leading-tight">${item.title}</div>
+                        <div class="text-emerald-400 font-mono text-sm">${formatCurrency(item.askingPrice)}</div>
+                        ${item.fmv ? `<div class="text-zinc-500 font-mono text-xs">FMV ~${formatCurrency(item.fmv)}</div>` : ''}
+                        ${item.listingUrl ? `<a href='${item.listingUrl}' target='_blank' rel='noopener noreferrer' onclick='event.stopPropagation()' class='text-xs font-oswald tracking-wide text-zinc-500 hover:text-yellow-400 transition-colors mt-1'>View on eBay ↗</a>` : ''}
+                        <div class="mt-2 w-full bg-zinc-700 hover:bg-zinc-600 py-1.5 rounded-xl text-xs font-oswald text-center tracking-wide">+ WATCH</div>
+                    </div>`).join('');
+            })
+            .catch(() => {
+                loading.classList.add('hidden');
+                empty.classList.remove('hidden');
+            });
+    }
+
+    function addEbayToWatchlist(index) {
+        const item = window._watchlistResults[index];
+        if (!item) return;
+        watchlist.push({
+            id:           'watch-' + Date.now(),
+            title:        item.title,
+            currentPrice: item.askingPrice,
+            fmv:          item.fmv || null,
+            image:        item.image || '',
+            condition:    item.condition || 'Unknown',
+            addedDate:    new Date().toISOString()
+        });
+        saveData();
+        renderWatchlist();
+        showToast('Added to Watchlist');
+        closeWatchlistEbay();
+    }
+
+    function closeWatchlistEbay() {
+        document.getElementById('watchlist-ebay-wrap').classList.add('hidden');
+        document.getElementById('watchlist-search').value = '';
+        window._watchlistResults = [];
+    }
+
+    function buyFromWatchlist(index) {
+        const item = watchlist[index];
+        if (cash < item.currentPrice) return showToast(`Can't afford — need ${formatCurrency(item.currentPrice)}, you have ${formatCurrency(cash)}`);
+
+        const bought = {
+            ...item,
+            buyPrice:           item.currentPrice,
+            buyDate:            new Date().toISOString(),
+            condition:          item.condition || 'Unknown',
+            cgcGraded:          false,
+            cgcGrade:           null,
+            signed:             false,
+            cgcSS:              false,
+            gradingStatus:      null,
+            gradingReturnMonth: null,
+            history:            [{ price: item.currentPrice, date: new Date().toISOString() }]
+        };
+
+        cash -= item.currentPrice;
+        portfolio.push(bought);
+        watchlist.splice(index, 1);
+
+        addTransaction('BUY', bought.title, bought.buyPrice);
+        saveData();
+        showToast('Purchased from Watchlist!');
+        renderPortfolio();
+        renderWatchlist();
+        updateMetrics();
+        switchTab(0);
+    }
+
+    function removeFromWatchlist(index) {
+        watchlist.splice(index, 1);
+        saveData();
+        renderWatchlist();
+    }
+
+    function sellItem(index) {
+        const item = portfolio[index];
+        const profit = item.currentPrice - item.buyPrice;
+        cash += item.currentPrice;
+        addTransaction('SELL', item.title, item.currentPrice, profit);
+        portfolio.splice(index, 1);
+        showToast(`Sold for ${formatCurrency(item.currentPrice)}`);
+        renderPortfolio();
+        updateMetrics();
+        saveData();
+    }
+
+    function renderDashboard() {
+        const ctx = document.getElementById('performanceChart');
+        if (ctx.chartInstance) ctx.chartInstance.destroy();
+
+        const hasHistory = portfolioHistory.length > 1;
+        const labels = hasHistory ? portfolioHistory.map((_, i) => i === 0 ? 'Start' : `T+${i}`) : ['Start', 'Now'];
+        const values = hasHistory ? portfolioHistory.map(h => h.value) : [startingCash, cash + portfolio.reduce((s,i) => s + i.currentPrice, 0)];
+
+        ctx.chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{ label: 'Portfolio Value', data: values, borderColor: '#10b981', backgroundColor: '#10b98122', fill: true, tension: 0.4, borderWidth: 3, pointRadius: 0 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { display: false }, y: { display: false } }
+            }
+        });
+
+        const sells = transactions.filter(t => t.type === 'SELL' && t.pl !== undefined);
+        if (sells.length > 0) {
+            const best = sells.reduce((a,b) => a.pl > b.pl ? a : b);
+            const worst = sells.reduce((a,b) => a.pl < b.pl ? a : b);
+            document.getElementById('best-flip').innerHTML = `${best.title}<br><span class="text-lg">+${formatCurrency(best.pl)}</span>`;
+            document.getElementById('worst-flip').innerHTML = `${worst.title}<br><span class="text-lg">${formatCurrency(worst.pl)}</span>`;
+        }
+        document.getElementById('total-flips').textContent = sells.length;
+    }
+
+    function renderWatchlist() {
+        const grid = document.getElementById('watchlist-grid');
+        grid.innerHTML = '';
+
+        if (watchlist.length === 0) {
+            grid.innerHTML = `<div class="col-span-full py-16 text-center text-zinc-500">Your watchlist is empty.<br>Search eBay above to add comics to monitor.</div>`;
+            return;
+        }
+
+        watchlist.forEach((item, i) => {
+            const pctDiff = item.fmv ? ((item.currentPrice - item.fmv) / item.fmv * 100).toFixed(1) : null;
+            const dealClass = pctDiff !== null
+                ? (pctDiff <= -10 ? 'text-emerald-400' : pctDiff >= 10 ? 'text-red-400' : 'text-zinc-400')
+                : '';
+            const dealLabel = pctDiff !== null
+                ? (pctDiff <= -10 ? `▼ ${Math.abs(pctDiff)}% below market` : pctDiff >= 10 ? `▲ ${pctDiff}% above market` : 'Near market value')
+                : '';
+            const card = document.createElement('div');
+            card.className = "bg-zinc-900 border border-zinc-700 rounded-3xl p-5 card-hover";
+            card.innerHTML = `
+                <div class="flex gap-4">
+                    <img src="${item.image}" class="comic-cover w-20 h-auto flex-shrink-0" alt="${item.title}">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium line-clamp-2 text-sm">${item.title}</div>
+                        ${item.condition ? `<div class="text-xs text-zinc-500 mt-0.5">${item.condition}</div>` : ''}
+                        <div class="text-emerald-400 font-mono mt-2">${formatCurrency(item.currentPrice)}</div>
+                        ${item.fmv ? `<div class="text-zinc-500 font-mono text-xs">FMV ~${formatCurrency(item.fmv)}</div><div class="text-xs ${dealClass} mt-0.5">${dealLabel}</div>` : ''}
+                        <div class="mt-4 flex gap-2">
+                            <button onclick="buyFromWatchlist(${i})" class="flex-1 bg-emerald-600 hover:bg-emerald-500 py-2 rounded-2xl text-xs font-oswald font-semibold tracking-wide">BUY</button>
+                            <button onclick="removeFromWatchlist(${i})" class="flex-1 bg-zinc-700 hover:bg-zinc-600 py-2 rounded-2xl text-xs">REMOVE</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function renderTransactions() {
+        const feed = document.getElementById('transaction-feed');
+        if (transactions.length === 0) {
+            feed.innerHTML = `<div class="text-zinc-500 text-sm text-center py-8">No transactions yet.</div>`;
+            return;
+        }
+        feed.innerHTML = transactions.map(t => {
+            const isBuy = t.type === 'BUY';
+            const isSell = t.type === 'SELL';
+            const badgeColor = isBuy ? 'bg-emerald-900 text-emerald-400' : isSell ? 'bg-red-900 text-red-400' : 'bg-zinc-700 text-zinc-400';
+            const badgeText = isBuy ? 'BUY' : isSell ? 'SELL' : '—';
+            const plLine = (isSell && t.pl !== undefined) ? `<span class="ml-2 ${t.pl >= 0 ? 'text-emerald-400' : 'text-red-400'}">${t.pl >= 0 ? '+' : ''}${formatCurrency(t.pl)}</span>` : '';
+            return `<div class="py-3">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-mono px-2 py-0.5 rounded-lg ${badgeColor}">${badgeText}</span>
+                    <span class="text-xs text-zinc-500">${t.date}</span>
+                </div>
+                <div class="text-sm font-medium">${t.title}</div>
+                <div class="text-sm font-mono mt-0.5">${formatCurrency(t.amount)}${plLine}</div>
+            </div>`;
+        }).join('');
+    }
+
+    // --- DEMO: Starter Comics (delete this block + the grantStarterComics call below to remove) ---
+    const STARTER_COMICS = {
+        easy: [
+            { title: 'Venom: Lethal Protector #1', buyPrice: 15.00, currentPrice: 75.00, image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjExMzdhOGRkLWM0MjMtNDAxZC04OTVhLTQ0YmY3NjNiN2RmMS5qcGciLCJlZGl0cyI6W119', notes: '1st Venom titled series.' },
+            { title: 'Batman #227 (1970)', buyPrice: 45.00, currentPrice: 345.00, image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImMxMTY0Mzc0LThjNGItNDhmNi04NDIzLWI5ZWU4OGY5YmNlNC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: 'Iconic Neal Adams cover art.' },
+            { title: 'Invincible #1', buyPrice: 55.00, currentPrice: 255.00, image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjM4ZmI5NmQ3LWQyMTItNDAxMi1iY2QyLTcyOWFmMjI4ZGM2ZS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Invincible. 1st appearance of Omni-Man.' }
+        ],
+        medium: [
+            { title: 'New Mutants #98', buyPrice: 28.00, currentPrice: 128.00, image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjhmYjcxMzJiLTYwNzQtNGY2Yi05MTFiLWZjZWRmY2FlN2ZiZC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: '1st appearance of Deadpool.' },
+            { title: 'Incredible Hulk #181', buyPrice: 22.00, currentPrice: 622.00, image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImYzZWY4MjYwLWRiMmYtNDRlOS04MzZmLTg2N2ZiY2I1MzE4MS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: '1st full appearance of Wolverine.' }
+        ],
+        hard: [
+            { title: 'Detective Comics #880', buyPrice: 8.00, currentPrice: 28.00, image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjUxNTRkYjY2LTE4MGMtNGRjMi04ZDhjLWQ1N2ZhMWQ0Yjg4Ni5qcGciLCJlZGl0cyI6W119', notes: 'Jock cover. Modern key. Undervalued sleeper.' }
+        ]
+    };
+
+    function grantStarterComics(difficulty) {
+        const starters = STARTER_COMICS[difficulty] || [];
+        const dateStr = new Date().toLocaleString();
+        starters.forEach(comic => {
+            const item = {
+                id:                 'starter-' + Date.now() + '-' + Math.random().toString(36).slice(2),
+                title:              comic.title,
+                buyPrice:           comic.buyPrice,
+                currentPrice:       comic.currentPrice,
+                image:              comic.image,
+                buyDate:            new Date().toISOString(),
+                condition:          'Very Fine',
+                cgcGraded:          false,
+                cgcGrade:           null,
+                signed:             false,
+                cgcSS:              false,
+                gradingStatus:      null,
+                gradingReturnMonth: null,
+                notes:              comic.notes,
+                history:            [{ price: comic.buyPrice, date: new Date().toISOString() }]
+            };
+            portfolio.push(item);
+            transactions.push({ date: dateStr, type: 'BUY', title: item.title, amount: item.buyPrice, pl: 0 });
+        });
+    }
+    // --- END DEMO: Starter Comics ---
+
+    function startGame(amount) {
+        cash = amount;
+        startingCash = amount;
+        portfolio = [];
+        watchlist = [];
+        transactions = [{ date: new Date().toLocaleString(), type: 'START', title: 'Game started', amount }];
+        const difficulty = amount === 1000 ? 'easy' : amount === 500 ? 'medium' : 'hard';
+        grantStarterComics(difficulty); // DEMO: remove this line with the block above to disable starter comics
+        saveData();
+        document.getElementById('difficulty-modal').classList.add('hidden');
+        updateMetrics();
+        switchTab(0);
+    }
+
+    function addTransaction(type, title, amount, pl = 0) {
+        const date = new Date();
+        const short = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+        transactions.unshift({ date: short, type, title, amount, pl });
+        if (transactions.length > 50) transactions.pop();
+    }
+
+    function resetGame() {
+        if (!confirm("Reset everything and choose a new difficulty?")) return;
+        localStorage.clear();
+        location.reload();
+    }
+
+    function showPage(page) {
+        if (page === 'about') { document.getElementById('about-modal').classList.remove('hidden'); }
+        else if (page === 'privacy') { document.getElementById('privacy-modal').classList.remove('hidden'); }
+        else if (page === 'contact') { document.getElementById('contact-modal').classList.remove('hidden'); }
+        else if (page === 'rules') { document.getElementById('rules-modal').classList.remove('hidden'); }
+    }
+
+    function hideAbout() { document.getElementById('about-modal').classList.add('hidden'); }
+    function hidePrivacy() { document.getElementById('privacy-modal').classList.add('hidden'); }
+    function hideContact() { document.getElementById('contact-modal').classList.add('hidden'); }
+    function hideRules() { document.getElementById('rules-modal').classList.add('hidden'); }
+    function showRoadmap() { document.getElementById('roadmap-modal').classList.remove('hidden'); }
+    function hideRoadmap() { document.getElementById('roadmap-modal').classList.add('hidden'); }
+
+    // --- CGC GRADING HELPERS ---
+    function cgcGradeMultiplier(grade) {
+        if (grade >= 10.0) return 10.0;
+        if (grade >= 9.8)  return 6.0;
+        if (grade >= 9.4)  return 4.0;
+        if (grade >= 9.0)  return 2.5;
+        if (grade >= 8.0)  return 1.5;
+        if (grade >= 6.0)  return 1.0;
+        if (grade >= 3.5)  return 0.9;
+        return 0.8;
+    }
+
+    function conditionToGradeRange(condition) {
+        const map = {
+            'Mint':       [9.8, 10.0],
+            'Near Mint':  [9.0, 9.6],
+            'Very Fine':  [7.0, 8.5],
+            'Fine':       [5.0, 6.5],
+            'Very Good':  [3.5, 4.5],
+            'Good':       [2.5, 3.0],
+            'Fair':       [1.5, 2.0],
+            'Poor':       [0.5, 1.0],
+            'Unknown':    [4.0, 7.0],
+        };
+        return map[condition] || [4.0, 7.0];
+    }
+
+    function randomGradeInRange(min, max) {
+        const steps = [];
+        for (let g = min; g <= max + 0.01; g += 0.5) {
+            steps.push(parseFloat(g.toFixed(1)));
+        }
+        // Cap at 9.8 unless range includes 10.0
+        const filtered = steps.filter(g => g <= (max >= 9.9 ? 10.0 : 9.8));
+        return filtered[Math.floor(Math.random() * filtered.length)] || min;
+    }
+    // --- END CGC GRADING HELPERS ---
+
+    function toggleManualCGCGrade() {
+        const checked = document.getElementById('manual-cgc').checked;
+        document.getElementById('manual-cgc-grade-wrap').classList.toggle('hidden', !checked);
+    }
+
+    function showManualEntryModal() {
+        document.getElementById('manual-modal').classList.remove('hidden');
+        document.getElementById('manual-title').value = '';
+        document.getElementById('manual-issue').value = '';
+        document.getElementById('manual-price').value = '';
+        document.getElementById('manual-image').value = '';
+        document.getElementById('manual-condition').value = 'Unknown';
+        document.getElementById('manual-cgc').checked = false;
+        document.getElementById('manual-cgc-grade-wrap').classList.add('hidden');
+        document.getElementById('manual-cgc-grade').value = '9.8';
+        document.getElementById('manual-signed').checked = false;
+        document.getElementById('manual-cgcss').checked = false;
+        document.getElementById('manual-notes').value = '';
+    }
+
+    function hideManualModal() {
+        document.getElementById('manual-modal').classList.add('hidden');
+    }
+
+    function confirmManualEntry() {
+        const title    = document.getElementById('manual-title').value.trim();
+        const issue    = document.getElementById('manual-issue').value.trim();
+        let imageUrl   = document.getElementById('manual-image').value.trim();
+        const priceStr = document.getElementById('manual-price').value.trim();
+        const condition= document.getElementById('manual-condition').value;
+        const isCGC    = document.getElementById('manual-cgc').checked;
+        const cgcGrade = isCGC ? parseFloat(document.getElementById('manual-cgc-grade').value) : null;
+        const isSigned = document.getElementById('manual-signed').checked;
+        const isCGCSS  = document.getElementById('manual-cgcss').checked;
+        const notes    = document.getElementById('manual-notes').value.trim();
+
+        if (!title || !priceStr) return showToast('Title and Purchase Price are required');
+        const price = parseFloat(priceStr);
+        if (isNaN(price) || price <= 0) return showToast('Please enter a valid positive price');
+
+        const fullTitle = issue ? `${title} ${issue}` : title;
+        if (!imageUrl) imageUrl = 'https://picsum.photos/id/1015/600/900';
+
+        // Apply grade multiplier to currentPrice if CGC graded on import
+        let currentPrice = price;
+        if (isCGC && cgcGrade !== null) {
+            currentPrice = parseFloat((price * cgcGradeMultiplier(cgcGrade)).toFixed(2));
+        }
+        // Apply signed premium if raw signed
+        if (isSigned && !isCGC) {
+            currentPrice = parseFloat((currentPrice * 1.35).toFixed(2));
+        }
+        // CGC SS is graded + signed — apply both multipliers
+        if (isCGCSS && isCGC && cgcGrade !== null) {
+            currentPrice = parseFloat((price * cgcGradeMultiplier(cgcGrade) * 1.5).toFixed(2));
+        }
+
+        const newItem = {
+            id:           'manual-' + Date.now().toString(),
+            title:        fullTitle,
+            buyPrice:     price,
+            currentPrice,
+            image:        imageUrl,
+            buyDate:      new Date().toISOString(),
+            condition,
+            cgcGraded:    isCGC,
+            cgcGrade:     cgcGrade,
+            signed:       isSigned || isCGCSS,
+            cgcSS:        isCGCSS,
+            gradingStatus: null, // null | 'pending-cgc' | 'pending-ss'
+            gradingReturnMonth: null,
+            notes,
+            history:      [{ price: currentPrice, date: new Date().toISOString() }]
+        };
+
+        cash -= price;
+        portfolio.push(newItem);
+        addTransaction('BUY', newItem.title, price);
+
+        showToast(`Added "${fullTitle}" to Portfolio!`);
+        hideManualModal();
+        renderPortfolio();
+        updateMetrics();
+        saveData();
+    }
+
+    function init() {
+        loadData();
+        const isNewGame = !localStorage.getItem('posterflip_v5_startingCash');
+        if (isNewGame) {
+            document.getElementById('difficulty-modal').classList.remove('hidden');
+        } else {
+            updateMetrics();
+            switchTab(0);
+        }
+        setViewMode('list');
+        // Restore market state across sessions
+        marketEnabled = localStorage.getItem('posterflip_v5_market') !== 'false';
+        applyMarketState();
+        // SIMULATION LOG: restore auto-work toggle
+        document.getElementById('auto-work-toggle').checked = autoWork;
+        // END SIMULATION LOG
+        // PRICE TICKER: build and restore toggle state
+        buildTicker();
+        const tickerOn = localStorage.getItem('posterflip_v5_ticker') !== 'false';
+        document.getElementById('ticker-toggle').checked = tickerOn;
+        if (!tickerOn) document.getElementById('ticker-wrap').classList.add('hidden');
+        // END PRICE TICKER
+    }
+
+    // --- SIMULATED MARKET ENGINE ---
+    // To remove: delete this entire block, the toggleMarket() call in init(),
+    // and the market toggle button in the footer.
+    //
+    // TUNING KNOBS — adjust these to scale speed and volatility:
+    const MARKET_INTERVAL_MS   = 20000;  // How often prices tick (ms). Lower = faster. Default: 20000 (20s)
+    const MARKET_DRIFT_MAX     = 0.04;   // Max % change per tick (0.04 = 4%). Higher = wilder swings.
+    const MARKET_DRIFT_BIAS    = 0.008;  // Slight upward bias (0.008 = 0.8%). Mimics long-term appreciation.
+    const MARKET_FLOOR         = 0.25;   // Price can't fall below this fraction of buy price (0.25 = 25%).
+
+    let marketEnabled = false;
+    let marketInterval = null;
+
+    let portfolioHistory = []; // [{value, date}] — records total value each tick
+
+    function marketTick() {
+        const now = new Date().toISOString();
+        // Price updates — only runs when there are items to update
+        if (portfolio.length) {
+            portfolio.forEach(item => {
+                const change = (Math.random() * MARKET_DRIFT_MAX * 2) - MARKET_DRIFT_MAX + MARKET_DRIFT_BIAS;
+                const floor  = item.buyPrice * MARKET_FLOOR;
+                item.currentPrice = Math.max(floor, item.currentPrice * (1 + change));
+                item.history = item.history || [];
+                item.history.push({ price: parseFloat(item.currentPrice.toFixed(2)), date: now });
+                if (item.history.length > 50) item.history.shift();
+            });
+        }
+        const totalValue = portfolio.reduce((s, i) => s + i.currentPrice, 0) + cash;
+        portfolioHistory.push({ value: parseFloat(totalValue.toFixed(2)), date: now });
+        if (portfolioHistory.length > 50) portfolioHistory.shift();
+
+        // SIMULATION LOG: monthly tick logic
+        simMonth++;
+        processGradingReturns(); // CGC GRADING
+        addLog(`📅 Month ${simMonth} — A new month has begun.`);
+        if (cash >= 50) {
+            cash -= 50;
+            missedPayments = 0;
+            addLog(`🏠 Cost of living deducted: -$50.00 (Cash: ${formatCurrency(cash)})`);
+        } else {
+            missedPayments++;
+            addLog(`⚠️ Month ${simMonth} — Couldn't cover cost of living. (Strike ${missedPayments} of 3)`);
+            if (missedPayments >= 3) {
+                saveData();
+                updateMetrics();
+                renderPortfolio();
+                document.getElementById('gameover-month').textContent = simMonth;
+                document.getElementById('gameover-modal').classList.remove('hidden');
+                return; // stop — don't show monthly choice
+            }
+        }
+        saveData();
+        updateMetrics();
+        renderPortfolio();
+        if (autoWork) {
+            cash += 60;
+            addLog(`💼 Auto-Work: +$60.00 earned. (Cash: ${formatCurrency(cash)})`);
+            saveData();
+            updateMetrics();
+        } else {
+            clearInterval(marketInterval);
+            marketInterval = null;
+            document.getElementById('monthly-month-label').textContent = `Month ${simMonth}`;
+            document.getElementById('monthly-modal').classList.remove('hidden');
+        }
+        // END SIMULATION LOG
+    }
+
+    function toggleMarket() {
+        marketEnabled = !marketEnabled;
+        localStorage.setItem('posterflip_v5_market', marketEnabled);
+        applyMarketState();
+    }
+
+    function applyMarketState() {
+        const dot   = document.getElementById('market-dot');
+        const label = document.getElementById('market-label');
+        if (marketEnabled) {
+            dot.className   = 'inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+            label.textContent = 'Simulated Market: On';
+            if (!marketInterval) marketInterval = setInterval(marketTick, MARKET_INTERVAL_MS);
+            addLog('🟢 Simulated Market enabled — time begins.'); // SIMULATION LOG
+        } else {
+            dot.className   = 'inline-block w-2 h-2 rounded-full bg-zinc-600';
+            label.textContent = 'Simulated Market: Off';
+            clearInterval(marketInterval);
+            marketInterval = null;
+            // SIMULATION LOG: close any open monthly modal when market is turned off
+            document.getElementById('monthly-modal').classList.add('hidden');
+            document.getElementById('event-modal').classList.add('hidden');
+            document.getElementById('gameover-modal').classList.add('hidden');
+            if (simMonth > 0) addLog('🔴 Simulated Market paused.');
+            // END SIMULATION LOG
+        }
+        saveData(); // SIMULATION LOG: persist log entries on state change
+    }
+    // --- END SIMULATED MARKET ENGINE ---
+
+    // --- SIMULATION LOG FUNCTIONS ---
+    // Remove this entire block (and the SIMULATION LOG hooks above) to fully disable.
+
+    // --- MASTER BOOK LIST ---
+    // Add new books here following the same shape. Categories: silver-age, bronze-age, copper-age, modern, indie, grail
+    // basePrice is the true fair market value — event price variance is applied on top at purchase time.
+    // Lines marked // DUMMY are placeholder entries. Replace with real data as you curate your list.
+    const MASTER_BOOKS = [
+
+        // ── SILVER AGE ──────────────────────────────────────────────
+        { title: 'Amazing Fantasy #15', issue: '#15', basePrice: 4500.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImEyNDU0ODZiLTQxMmYtNDgwYS1hMTU4LTAyMDkzNDAxNjc3My5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: '1st appearance of Spider-Man. Silver Age cornerstone.' },
+        { title: 'Fantastic Four #48', issue: '#48', basePrice: 950.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjEwODNmMjBmLWNiNzUtNGUyOS1iYTg2LTljZjI2ZmE5YmIzZi5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Silver Surfer and Galactus.' },
+        { title: 'X-Men #1', issue: '#1', basePrice: 2200.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImNmNWI0NmM5LTY5NjMtNDZkZS1hZWQ0LTE3OTA4ZDFlZDE2Ni5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of X-Men, Cyclops, Beast, Angel, Iceman, Marvel Girl, Magneto, Professor X.' },
+        { title: 'Tales of Suspense #39', issue: '#39', basePrice: 3200.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImE4MjFkYjNhLTFkZGQtNDc4OS1iMTFkLWZkMjlmYzY4NTk5ZC5qcGciLCJlZGl0cyI6W119', notes: 'Origin and 1st appearance of Iron Man.' },
+        { title: 'Strange Tales #110', issue: '#110', basePrice: 1800.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjAyYWE0YmNkLWE4ZTEtNDZhZS1iZDQ3LTg0Y2NjMzY3MWI3NS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Doctor Strange.' },
+        { title: 'Daredevil #1', issue: '#1', basePrice: 1400.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImM4MmY4YThkLTFlZDQtNDc0Mi1hYWQyLWFlZjNhZjcyYjkwYS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Daredevil and Foggy Nelson.' },
+        { title: 'Avengers #1', issue: '#1', basePrice: 2800.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjQ0YzFiMTg0LTM4NTMtNDM5ZC04MWExLTMzYjgyYWU4Y2Q5Zi5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of the Avengers.' },
+        { title: 'Batman #227', issue: '#227', basePrice: 320.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImMxMTY0Mzc0LThjNGItNDhmNi04NDIzLWI5ZWU4OGY5YmNlNC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: 'Iconic Neal Adams cover. Classic Batman.' },
+        { title: 'Giant-Size X-Men #1', issue: '#1', basePrice: 850.00, category: 'silver-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImIzYTliOTRmLTVmOTktNDkxMC04NjM3LWJjZjc3OTNmODY5OC5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Storm, Colossus, Nightcrawler, Thunderbird. 2nd Wolverine.' },
+
+        // ── BRONZE AGE ───────────────────────────────────────────────
+        { title: 'Marvel Spotlight #5', issue: '#5', basePrice: 480.00, category: 'bronze-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImU5MmQwZTg5LTI3NTItNDA4MS05ZDFlLWI3MDVkYmM1NmUwMy5qcGciLCJlZGl0cyI6W119', notes: '1st appearance and origin of Ghost Rider (Johnny Blaze).' },
+        { title: 'Amazing Spider-Man #129', issue: '#129', basePrice: 425.00, category: 'bronze-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjM4MjkzMDJlLTc0ZDktNGY1OS04MmFhLThjZjczMTE5MjkzYy5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of the Punisher.' },
+        { title: 'Iron Fist #14', issue: '#14', basePrice: 310.00, category: 'bronze-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjJhM2QzZTM1LWZhMWYtNDM4MS05NjFjLTVjMjg5MGZhMmMwMC5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Sabretooth.' },
+        { title: 'Ghost Rider #1', issue: '#1', basePrice: 185.00, category: 'bronze-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjM3NjM3N2U2LTY1ZmQtNDVjOS05ZjlkLWYwOGJmYTRkNTFiZS5qcGciLCJlZGl0cyI6W119', notes: '1st solo Ghost Rider series.' },
+        { title: 'Batman #232', issue: '#232', basePrice: 390.00, category: 'bronze-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImY3YzQyNjZmLTliZjYtNDVlNy05OGQyLTczN2UwMDVhMWIxMS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Ra\'s al Ghul. Neal Adams cover.' },
+        { title: 'House of Secrets #92', issue: '#92', basePrice: 750.00, category: 'bronze-age', image: 'https://storage.googleapis.com/images.pricecharting.com/7a1da5db30dc17be9c2b27d57772689f8edf174b8c491aba2bdbe8a49acfb13b/1600.jpg', notes: '1st appearance of Swamp Thing.' },
+        { title: 'Incredible Hulk #340', issue: '#340', basePrice: 95.00, category: 'bronze-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImNkYmVlZWNiLTMzMTQtNDg1Zi04MzVhLTcyMjIwNjc3ZDI1MC5qcGciLCJlZGl0cyI6W119', notes: 'Wolverine vs Hulk. McFarlane cover. Classic Bronze Age battle.' },
+
+        // ── COPPER AGE ───────────────────────────────────────────────
+        { title: 'New Mutants #98', issue: '#98', basePrice: 185.00, category: 'copper-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjhmYjcxMzJiLTYwNzQtNGY2Yi05MTFiLWZjZWRmY2FlN2ZiZC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: '1st appearance of Deadpool.' },
+        { title: 'Amazing Spider-Man #300', issue: '#300', basePrice: 220.00, category: 'copper-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImJlNjU0NmQ2LTM3NGQtNDQxNi1iMWEyLWI5MWNjNjY4YzA0Ni5qcGciLCJlZGl0cyI6W119', notes: '1st full appearance and origin of Venom.' },
+        { title: 'Uncanny X-Men #266', issue: '#266', basePrice: 95.00, category: 'copper-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjYwNzgyODljLTliYTEtNDY5Yi1hM2M2LTdjOGJlYzE1M2VhMC5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Gambit.' },
+        { title: 'Silver Surfer #3', issue: '#3', basePrice: 110.00, category: 'copper-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6Ijk3ZjUwNzU1LWRlMDQtNDJkNy04MWM5LTMxNWZmZDc1YzNjMi5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Mephisto.' },
+        { title: 'Spawn #1', issue: '#1', basePrice: 55.00, category: 'copper-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImMzMTY0M2UzLTVlMGQtNDM1Ni05MzE2LWQ1OTM2NTdjOTc1OC5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Spawn. Todd McFarlane.' },
+        { title: 'Venom: Lethal Protector #1', issue: '#1', basePrice: 48.00, category: 'copper-age', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjExMzdhOGRkLWM0MjMtNDAxZC04OTVhLTQ0YmY3NjNiN2RmMS5qcGciLCJlZGl0cyI6W119', notes: '1st Venom solo series.' },
+        { title: 'X-Men #1 (1991)', issue: '#1', basePrice: 22.00, category: 'copper-age', image: 'https://files1.comics.org//img/gcd/covers_by_id/732/w400/732679.jpg?-5782423178699714394', notes: 'Jim Lee. Best-selling single issue of all time.' },
+
+        // ── MODERN ───────────────────────────────────────────────────
+        { title: 'Batman Adventures #12', issue: '#12', basePrice: 280.00, category: 'modern', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjgwNjRiNGQ2LWFkOTMtNGQxYS04NDc0LWRjNzAwOTc4MTVmNS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Harley Quinn.' },
+        { title: 'Ultimate Fallout #4', issue: '#4', basePrice: 95.00, category: 'modern', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjM3NGExYzcxLTBhOTItNDc0Zi1hMjU5LTk4MmMxMzYyZmZhZC5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Miles Morales as Spider-Man.' },
+        { title: 'Walking Dead #1', issue: '#1', basePrice: 320.00, category: 'modern', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjlmNzI1NDVkLWM0ODctNGY3Yi05MzIzLTgxZTA4MDdmYzRmMS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Rick Grimes. Image Comics.' },
+        { title: 'Something is Killing the Children #1', issue: '#1', basePrice: 145.00, category: 'modern', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjRhYjY5YmFjLTdlZTYtNDgxNC1iMjNiLTdiMjYwZTZhNTdhYS5qcGciLCJlZGl0cyI6W119', notes: 'BOOM! Studios. Hot modern key. 1st Erica Slaughter.' },
+        { title: 'Amazing Spider-Man #361', issue: '#361', basePrice: 55.00, category: 'modern', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6Ijc0ODhmMTJhLTgwZTktNDRmYS05YjgwLTBiNTYwODRjOTA5YS5qcGciLCJlZGl0cyI6W119', notes: '1st full appearance of Carnage.' },
+        { title: 'Invincible #1', issue: '#1', basePrice: 260.00, category: 'modern', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjM4ZmI5NmQ3LWQyMTItNDAxMi1iY2QyLTcyOWFmMjI4ZGM2ZS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Invincible and Omni-Man. Image Comics.' },
+        { title: 'Detective Comics #880', issue: '#880', basePrice: 75.00, category: 'modern', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjUxNTRkYjY2LTE4MGMtNGRjMi04ZDhjLWQ1N2ZhMWQ0Yjg4Ni5qcGciLCJlZGl0cyI6W119', notes: 'Jock cover. Modern key. Highly sought after.' },
+        { title: 'New Mutants #87', issue: '#87', basePrice: 65.00, category: 'modern', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImQ0YjVmYjNlLWViOWItNDdkZS05YzVkLTFjMGEyOGY3YzQ0OC5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: '1st appearance of Cable.' },
+
+        // ── INDIE ────────────────────────────────────────────────────
+        { title: 'Teenage Mutant Ninja Turtles #1', issue: '#1', basePrice: 3800.00, category: 'indie', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjYzZTJlZTM0LTU3NzQtNDU3YS04N2UyLTQyYjAyMjNhNTUwZi5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of TMNT. Mirage Studios. Raw copies extremely rare.' },
+        { title: 'Bone #1', issue: '#1', basePrice: 185.00, category: 'indie', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImVhYzMyY2FiLWY5ZDQtNDU0ZS1hYmIzLWVmNDM4ODhjOTAxYS5qcGciLCJlZGl0cyI6W119', notes: 'Jeff Smith. Landmark indie series. 1st print.' },
+        { title: 'Saga #1', issue: '#1', basePrice: 95.00, category: 'indie', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImQ2NjUwZjliLTYxMjAtNGI4Yi05YjA2LWNmMDA2MGY5ZGZjMC5qcGciLCJlZGl0cyI6W119', notes: 'Image Comics. Brian K. Vaughan. Modern indie classic.' },
+        { title: 'Watchmen #1', issue: '#1', basePrice: 65.00, category: 'indie', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjhiOTY1YTA1LTY0N2EtNDcyMy1iZjJlLWUyODQ0MmMxOTM4MC5qcGciLCJlZGl0cyI6W119', notes: 'Alan Moore. Dave Gibbons. Landmark limited series.' },
+        { title: 'Maus #1', issue: '#1', basePrice: 120.00, category: 'indie', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjE1NDJkNzA4LTRhNWEtNGFmNi1iMTNiLTgyNzA2NTA5NDNiZi5qcGciLCJlZGl0cyI6W119', notes: 'Art Spiegelman. Pulitzer Prize winner. Raw #1s are rare.' },
+        { title: 'Sandman #1', issue: '#1', basePrice: 85.00, category: 'indie', image: 'https://storage.googleapis.com/images.pricecharting.com/705348fd2cfe55c9545d5c1402922d8deaa8c7dcb0ed089f8fab9fb098c11c83/1600.jpg', notes: 'Neil Gaiman. 1st appearance of Dream. Vertigo.' },
+
+        // ── GRAIL ─────────────────────────────────────────────────────
+        { title: 'Incredible Hulk #181', issue: '#181', basePrice: 2400.00, category: 'grail', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImYzZWY4MjYwLWRiMmYtNDRlOS04MzZmLTg2N2ZiY2I1MzE4MS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: '1st full appearance of Wolverine. Holy grail of Bronze Age.' },
+        { title: 'Amazing Spider-Man #1', issue: '#1', basePrice: 8500.00, category: 'grail', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjkzZmY2OTZlLTJlZWYtNDE5Zi1iOWFjLWFlODg3ZDBhZDQ4MS5qcGciLCJlZGl0cyI6W119', notes: 'First solo Spider-Man title. Featuring Fantastic Four.' },
+        { title: 'Fantastic Four #1', issue: '#1', basePrice: 7200.00, category: 'grail', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImNlNGQ0Y2U4LTE2MzItNDA0Yi04OWE4LTA4MDVjZjA3ZDhjZS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Fantastic Four and Mole Man. First Marvel superhero comic.' },
+        { title: 'Batman #1', issue: '#1', basePrice: 95000.00, category: 'grail', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjI1OWQ3MmU2LWFjNmQtNGMyMi1iZTMxLTJjNTNiZDdmZmVkZS5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Joker and Catwoman. Golden Age cornerstone.' },
+        { title: 'Detective Comics #27', issue: '#27', basePrice: 280000.00, category: 'grail', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6ImQzY2M1YjcwLTg1ZGYtNGZmNS1iNDkwLTQ0YWY4ZmU1Yzk3YS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjMwMH19fQ==', notes: '1st appearance of Batman. One of the most valuable comics ever printed.' },
+        { title: 'Action Comics #1', issue: '#1', basePrice: 350000.00, category: 'grail', image: 'https://img.gocollect.com/eyJidWNrZXQiOiJnb2NvbGxlY3QuaW1hZ2VzLnB1YiIsImtleSI6IjI2MTM5MmJkLWMxNTMtNDMzNy1hOWNlLTg0Y2I5MTI2NmQ1OC5qcGciLCJlZGl0cyI6W119', notes: '1st appearance of Superman. The most valuable comic book ever printed.' },
+
+    ];
+
+    // --- END MASTER BOOK LIST ---
+
+    // --- EVENT CATALOGUE ---
+    // To add a new event: push a new object following the same shape.
+    // categories: which MASTER_BOOKS categories this event draws from.
+    // priceRange: multiplier applied to basePrice at pick time (min/max). Player sees result, never basePrice.
+    const EVENTS = [
+        {
+            name: 'Local Comic Shop',
+            icon: '🏪',
+            desc: 'Your local shop is having a sale! Grab a key issue at a reduced price.',
+            categories: ['copper-age', 'modern', 'indie'],
+            priceRange: { min: 0.85, max: 1.15 }
+        },
+        {
+            name: 'Comic Convention',
+            icon: '🎪',
+            desc: 'Dealers are set up wall to wall. Premium books, premium prices — but deals exist if you look.',
+            categories: ['copper-age', 'modern', 'indie', 'grail'],
+            priceRange: { min: 1.0, max: 1.5 }
+        },
+        {
+            name: 'Estate Sale',
+            icon: '🏚️',
+            desc: "A collector's estate is being liquidated. Older keys at below-market prices — first come, first served.",
+            categories: ['silver-age', 'bronze-age', 'copper-age'],
+            priceRange: { min: 0.65, max: 1.05 }
+        },
+        {
+            name: 'Flea Market',
+            icon: '🛖',
+            desc: "Dusty long boxes, dollar bins, and the occasional hidden gem. You never know what you'll dig up.",
+            categories: ['silver-age', 'bronze-age', 'copper-age', 'modern', 'indie', 'grail'],
+            priceRange: { min: 0.4, max: 1.4 }
+        },
+        {
+            name: 'Library Book Sale',
+            icon: '📚',
+            desc: 'The public library is clearing shelf space. Graphic novels and trades at nearly nothing.',
+            categories: ['indie', 'modern'],
+            priceRange: { min: 0.2, max: 0.5 }
+        },
+        {
+            name: 'Online Auction',
+            icon: '💻',
+            desc: 'A few lots are closing tonight. Move fast — these prices disappear at midnight.',
+            categories: ['copper-age', 'modern', 'indie', 'grail'],
+            priceRange: { min: 0.8, max: 1.6 }
+        }
+    ];
+    // --- END EVENT CATALOGUE ---
+
+    function addLog(msg) {
+        const now = new Date();
+        const timeStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+        gameLogs.unshift({ msg, time: timeStr });
+        if (gameLogs.length > 100) gameLogs.pop();
+    }
+
+    function renderLog() {
+        const feed = document.getElementById('sim-log-feed');
+        if (gameLogs.length === 0) {
+            feed.innerHTML = `<div class="text-zinc-500 text-sm text-center py-8">Enable Simulated Market to begin logging.</div>`;
+            return;
+        }
+        feed.innerHTML = gameLogs.map(entry => `
+            <div class="py-3">
+                <div class="text-xs text-zinc-500 mb-0.5">${entry.time}</div>
+                <div class="text-sm">${entry.msg}</div>
+            </div>
+        `).join('');
+    }
+
+    function toggleAutoWork() {
+        autoWork = document.getElementById('auto-work-toggle').checked;
+        saveData();
+    }
+
+    function chooseWork() {
+        cash += 60;
+        addLog(`💼 Worked this month: +$60.00 earned. (Cash: ${formatCurrency(cash)})`);
+        document.getElementById('monthly-modal').classList.add('hidden');
+        saveData();
+        updateMetrics();
+        resumeMarket();
+    }
+
+    function chooseEvent() {
+        document.getElementById('monthly-modal').classList.add('hidden');
+        const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+
+        // Filter master list to eligible categories, shuffle, pick 2 distinct titles
+        const pool = MASTER_BOOKS
+            .filter(b => event.categories.includes(b.category))
+            .sort(() => Math.random() - 0.5);
+        const picked = [];
+        for (const book of pool) {
+            if (!picked.find(p => p.title === book.title)) picked.push(book);
+            if (picked.length === 2) break;
+        }
+
+        // Apply event price variance to basePrice
+        const { min, max } = event.priceRange;
+        const selectedBooks = picked.map(book => ({
+            ...book,
+            price: parseFloat((book.basePrice * (min + Math.random() * (max - min))).toFixed(2))
+        }));
+
+        currentEvent = { ...event, books: selectedBooks };
+        document.getElementById('event-icon').textContent = currentEvent.icon;
+        document.getElementById('event-name').textContent = currentEvent.name;
+        document.getElementById('event-desc').textContent = currentEvent.desc;
+
+        const booksEl = document.getElementById('event-books');
+        booksEl.innerHTML = currentEvent.books.map((book, i) => {
+            const canAfford = cash >= book.price;
+            return `
+            <div class="bg-zinc-800 rounded-2xl p-3 border border-zinc-700 flex flex-col items-center text-center">
+                <img src="${book.image}" class="comic-cover w-full mb-3" alt="${book.title}">
+                <div class="text-xs font-medium line-clamp-2 mb-2">${book.title}</div>
+                <div class="text-emerald-400 font-mono text-sm mb-3">${formatCurrency(book.price)}</div>
+                <button onclick="buyEventBook(${i})"
+                    class="w-full py-2 rounded-xl text-xs font-oswald font-semibold tracking-wide ${canAfford ? 'bg-yellow-500 hover:bg-yellow-400 text-zinc-950' : 'bg-zinc-700 opacity-50 cursor-not-allowed'}"
+                    ${canAfford ? '' : 'disabled'}>
+                    ${canAfford ? 'BUY' : 'NOT ENOUGH CASH'}
+                </button>
+            </div>`;
+        }).join('');
+
+        document.getElementById('event-modal').classList.remove('hidden');
+    }
+
+    function buyEventBook(bookIndex) {
+        const book = currentEvent.books[bookIndex];
+        if (cash < book.price) return;
+
+        const newItem = {
+            id:                 'event-' + Date.now(),
+            title:              book.title,
+            buyPrice:           book.price,
+            currentPrice:       book.basePrice,
+            image:              book.image,
+            buyDate:            new Date().toISOString(),
+            condition:          'Very Fine',
+            cgcGraded:          false,
+            cgcGrade:           null,
+            signed:             false,
+            cgcSS:              false,
+            gradingStatus:      null,
+            gradingReturnMonth: null,
+            notes:              `Purchased at ${currentEvent.name}.`,
+            history:            [{ price: book.basePrice, date: new Date().toISOString() }]
+        };
+        cash -= book.price;
+        portfolio.push(newItem);
+        addTransaction('BUY', newItem.title, book.price);
+        addLog(`${currentEvent.icon} ${currentEvent.name}: Purchased "${book.title}" for ${formatCurrency(book.price)}.`);
+
+        showToast(`Added "${book.title}" to Portfolio!`);
+        document.getElementById('event-modal').classList.add('hidden');
+        currentEvent = null;
+        saveData();
+        updateMetrics();
+        renderPortfolio();
+        resumeMarket();
+    }
+
+    function closeEvent() {
+        addLog(`${currentEvent ? currentEvent.icon + ' ' + currentEvent.name : '🎪 Event'}: Passed — nothing purchased.`);
+        document.getElementById('event-modal').classList.add('hidden');
+        currentEvent = null;
+        resumeMarket();
+    }
+
+    function resumeMarket() {
+        if (marketEnabled && !marketInterval) {
+            marketInterval = setInterval(marketTick, MARKET_INTERVAL_MS);
+        }
+        saveData();
+    }
+
+    // --- CGC GRADING FUNCTIONS ---
+
+    function showCGCModal(index) {
+        if (cash < 25) return showToast('Not enough cash — CGC fee is $25.00');
+        pendingCGCIndex = index;
+        document.getElementById('cgc-modal-title').textContent = portfolio[index].title;
+        document.getElementById('cgc-modal-cash').textContent = formatCurrency(cash);
+        document.getElementById('cgc-modal').classList.remove('hidden');
+        hideDetailModal();
+    }
+
+    function hideCGCModal() {
+        document.getElementById('cgc-modal').classList.add('hidden');
+        pendingCGCIndex = null;
+    }
+
+    function confirmSendToCGC() {
+        if (pendingCGCIndex === null) return;
+        const item = portfolio[pendingCGCIndex];
+        if (cash < 25) return showToast('Not enough cash');
+        cash -= 25;
+        item.gradingStatus = 'pending-cgc';
+        item.gradingReturnMonth = simMonth + 3;
+        addLog(`🏅 "${item.title}" sent to CGC. Returns Month ${item.gradingReturnMonth}. (-$25.00)`);
+        hideCGCModal();
+        saveData();
+        updateMetrics();
+        renderPortfolio();
+        showToast('Sent to CGC! Returns in 3 months.');
+    }
+
+    function showCGCSSModal(index) {
+        if (cash < 100) return showToast('Not enough cash — CGC SS fee is $100.00');
+        pendingCGCSSIndex = index;
+        document.getElementById('cgcss-modal-title').textContent = portfolio[index].title;
+        document.getElementById('cgcss-modal-cash').textContent = formatCurrency(cash);
+        document.getElementById('cgcss-modal').classList.remove('hidden');
+        hideDetailModal();
+    }
+
+    function hideCGCSSModal() {
+        document.getElementById('cgcss-modal').classList.add('hidden');
+        pendingCGCSSIndex = null;
+    }
+
+    function confirmSendToCGCSS() {
+        if (pendingCGCSSIndex === null) return;
+        const item = portfolio[pendingCGCSSIndex];
+        if (cash < 100) return showToast('Not enough cash');
+        cash -= 100;
+        item.gradingStatus = 'pending-ss';
+        item.gradingReturnMonth = simMonth + 6;
+        addLog(`✍️ "${item.title}" sent for CGC Signature Series. Returns Month ${item.gradingReturnMonth}. (-$100.00)`);
+        hideCGCSSModal();
+        saveData();
+        updateMetrics();
+        renderPortfolio();
+        showToast('Sent for CGC SS! Returns in 6 months.');
+    }
+
+    function processGradingReturns() {
+        let anyReturned = false;
+        portfolio.forEach(item => {
+            if (!item.gradingStatus || item.gradingReturnMonth > simMonth) return;
+
+            if (item.gradingStatus === 'pending-cgc') {
+                const [minG, maxG] = conditionToGradeRange(item.condition || 'Unknown');
+                const grade = randomGradeInRange(minG, maxG);
+                item.cgcGraded = true;
+                item.cgcGrade  = grade;
+                item.signed    = item.signed || false;
+                item.cgcSS     = false;
+                item.currentPrice = parseFloat((item.currentPrice * cgcGradeMultiplier(grade)).toFixed(2));
+                item.history.push({ price: item.currentPrice, date: new Date().toISOString() });
+                item.gradingStatus = null;
+                item.gradingReturnMonth = null;
+                addLog(`🏅 CGC Return: "${item.title}" graded ${grade} — new value ${formatCurrency(item.currentPrice)}`);
+                anyReturned = true;
+            }
+
+            if (item.gradingStatus === 'pending-ss') {
+                const [minG, maxG] = conditionToGradeRange(item.condition || 'Unknown');
+                const grade = randomGradeInRange(minG, maxG);
+                item.cgcGraded = true;
+                item.cgcGrade  = grade;
+                item.signed    = true;
+                item.cgcSS     = true;
+                item.currentPrice = parseFloat((item.currentPrice * cgcGradeMultiplier(grade) * 1.5).toFixed(2));
+                item.history.push({ price: item.currentPrice, date: new Date().toISOString() });
+                item.gradingStatus = null;
+                item.gradingReturnMonth = null;
+                addLog(`✍️ CGC SS Return: "${item.title}" graded ${grade} SS — new value ${formatCurrency(item.currentPrice)}`);
+                anyReturned = true;
+            }
+        });
+        if (anyReturned) { saveData(); updateMetrics(); renderPortfolio(); }
+    }
+
+    // --- END CGC GRADING FUNCTIONS ---
+
+    // --- END SIMULATION LOG FUNCTIONS ---
+
+    // --- PRICE TICKER ---
+    // Remove this block, the ticker HTML, the ticker CSS, and the footer toggle to fully disable.
+
+    const TICKER_FLAVOR = [
+        'SDCC 2024 — Record attendance: 135,000 collectors',
+        'Action Comics #1 sells for $6M at Heritage Auctions',
+        'Invincible Season 3 greenlit — key issues heating up',
+        'Amazing Fantasy #15 CGC 9.6 tops $1.5M',
+        'New Mutants #98 — Deadpool keys surge on film buzz',
+        'C2E2 Chicago — 90,000 fans expected this spring',
+        'Walking Dead #1 CGC 9.8 — only 3 known copies',
+        'Batman #232 first Ra\'s al Ghul — HBO series confirmed',
+        'Spawn #1 — 30th anniversary variant drives demand',
+        'MCU Phase 6 slate leaked — watch your X-Men keys',
+        'Heritage Comics auction — $42M total, new record',
+        'TMNT #1 Mirage print — raw copies under $10K rare',
+        'WonderCon 2025 — exclusive covers sell out in minutes',
+        'Saga resumes — #1 back issues climbing fast',
+        'CGC census hits 10M books graded milestone',
+    ];
+
+    function buildTicker() {
+        const portfolioValue = portfolio.reduce((s, i) => s + (i.currentPrice || 0), 0);
+        const totalPL = (cash + portfolioValue) - startingCash;
+        const month = simMonth > 0 ? `Month ${simMonth}` : 'Market Inactive';
+
+        const liveItems = [
+            { text: `Cash: ${formatCurrency(cash)}`, live: true },
+            { text: `Portfolio: ${formatCurrency(portfolioValue)}`, live: true },
+            { text: `Total P&L: ${(totalPL >= 0 ? '+' : '') + formatCurrency(totalPL)}`, live: true },
+            { text: month, live: true },
+        ];
+
+        // Interleave live data with flavor text
+        const allItems = [];
+        let fi = 0;
+        liveItems.forEach(item => {
+            allItems.push(item);
+            if (fi < TICKER_FLAVOR.length) {
+                allItems.push({ text: TICKER_FLAVOR[fi++], live: false });
+                allItems.push({ text: TICKER_FLAVOR[fi++] || TICKER_FLAVOR[0], live: false });
+            }
+        });
+        // Fill remaining flavor
+        while (fi < TICKER_FLAVOR.length) {
+            allItems.push({ text: TICKER_FLAVOR[fi++], live: false });
+        }
+
+        // Double the list for seamless CSS loop
+        const doubled = [...allItems, ...allItems];
+        const track = document.getElementById('ticker-track');
+        if (!track) return;
+        track.innerHTML = doubled.map(item =>
+            `<span class="ticker-item${item.live ? ' live' : ''}">${item.text}</span>`
+        ).join('');
+    }
+
+    function updateTicker() {
+        // Only rebuild the live-data spans to avoid restarting the animation
+        const liveEls = document.querySelectorAll('#ticker-track .ticker-item.live');
+        if (!liveEls.length) return;
+        const portfolioValue = portfolio.reduce((s, i) => s + (i.currentPrice || 0), 0);
+        const totalPL = (cash + portfolioValue) - startingCash;
+        const month = simMonth > 0 ? `Month ${simMonth}` : 'Market Inactive';
+        const liveTexts = [
+            `Cash: ${formatCurrency(cash)}`,
+            `Portfolio: ${formatCurrency(portfolioValue)}`,
+            `Total P&L: ${(totalPL >= 0 ? '+' : '') + formatCurrency(totalPL)}`,
+            month,
+        ];
+        // Items repeat twice — update all occurrences
+        const perSet = liveTexts.length;
+        liveEls.forEach((el, i) => { el.textContent = liveTexts[i % perSet]; });
+    }
+
+    function toggleTicker() {
+        const show = document.getElementById('ticker-toggle').checked;
+        const wrap = document.getElementById('ticker-wrap');
+        if (wrap) wrap.classList.toggle('hidden', !show);
+        localStorage.setItem('posterflip_v5_ticker', show);
+    }
+
+    // --- END PRICE TICKER ---
+
+    window.onload = init;
+
+    document.fonts.ready.then(() => {
+        document.body.classList.remove('opacity-0');
+    });
+</script>
+
+</body>
+</html>
