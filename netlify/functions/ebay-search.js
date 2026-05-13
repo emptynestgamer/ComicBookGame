@@ -72,7 +72,6 @@ var credentials = Buffer.from(
 process.env.EBAY_APP_ID + ‘:’ + process.env.EBAY_CERT_ID
 ).toString(‘base64’);
 
-```
 var res = await fetch(EBAY_TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -85,7 +84,6 @@ var res = await fetch(EBAY_TOKEN_URL, {
 if (!res.ok) throw new Error('Token fetch failed: ' + res.status);
 var data = await res.json();
 return data.access_token;
-```
 
 }
 
@@ -98,7 +96,6 @@ limit: String(limit),
 fieldgroups: ‘MATCHING_ITEMS,EXTENDED’
 });
 
-```
 var res = await fetch(EBAY_SEARCH_URL + '?' + params.toString(), {
     headers: {
         'Authorization': 'Bearer ' + token,
@@ -110,7 +107,6 @@ var res = await fetch(EBAY_SEARCH_URL + '?' + params.toString(), {
 if (!res.ok) return [];
 var data = await res.json();
 return data.itemSummaries || [];
-```
 
 }
 
@@ -118,7 +114,6 @@ exports.handler = async function(event) {
 var origin = (event.headers && event.headers.origin) ? event.headers.origin : ‘’;
 var allowedOrigin = ALLOWED_ORIGINS.indexOf(origin) !== -1 ? origin : ALLOWED_ORIGINS[0];
 
-```
 var headers = {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -186,6 +181,5 @@ try {
     console.error('ebay-search error:', err);
     return { statusCode: 500, headers: headers, body: JSON.stringify({ error: 'Search failed', detail: err.message }) };
 }
-```
 
 };
