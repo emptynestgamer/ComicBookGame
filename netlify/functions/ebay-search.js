@@ -79,7 +79,7 @@ return SLAB_TERMS.some(term => t.includes(term));
 
 function median(arr) {
 if (!arr.length) return null;
-const sorted = […arr].sort((a, b) => a - b);
+const sorted = [...arr].sort((a, b) => a - b);
 const mid = Math.floor(sorted.length / 2);
 return sorted.length % 2 !== 0
 ? sorted[mid]
