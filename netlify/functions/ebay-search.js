@@ -21,7 +21,8 @@ const ALLOWED_ORIGINS = [
 ‘https://holdmycomics.netlify.app’,
 ];
 
-const SLAB_TERMS = [‘cgc’, ‘cbcs’, ‘pgx’, ‘graded’, ‘slab’, ‘9.8’, ‘9.6’, ‘9.4’, ‘9.2’, ‘9.0’];
+const SLAB_TERMS = ['cgc', 'cbcs', 'pgx', 'graded', 'slab'];
+
 
 const ABBREVIATIONS = {
 ‘asm’:  ‘amazing spider-man’,
