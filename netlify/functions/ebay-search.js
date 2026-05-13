@@ -11,8 +11,9 @@ const EBAY_SEARCH_URL = ‘https://api.ebay.com/buy/browse/v1/item_summary/searc
 const COMICS_CATEGORY = ‘259104’;
 
 // EPN affiliate campaign ID
-const EPN_CAMPAIGN_ID  = ‘5339152803’;
-const EPN_AFFILIATE_URL = `https://rover.ebay.com/rover/1/711-53200-19255-0/1?campid=${EPN_CAMPAIGN_ID}&toolid=10001&mpre=`;
+const EPN_CAMPAIGN_ID  = '5339152803';
+const EPN_AFFILIATE_URL = 'https://rover.ebay.com/rover/1/711-53200-19255-0/1?campid=' + EPN_CAMPAIGN_ID + '&toolid=10001&mpre=';
+
 
 // Allowed origins
 const ALLOWED_ORIGINS = [
